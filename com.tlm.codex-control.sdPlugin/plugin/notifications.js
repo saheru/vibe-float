@@ -32,8 +32,9 @@ function collectStatusNotifications(cache, threads, watched) {
 
 function formatStatusNotification(type, thread) {
   const needsInput = type === "input";
+  const provider = String(thread?.provider || "codex").toLowerCase() === "claude" ? "Claude" : "Codex";
   return {
-    title: "Codex 任务通知",
+    title: `${provider} 任务通知`,
     subtitle: needsInput ? "状态：待回复" : "状态：已完成",
     message: `任务：${String(thread?.name || thread?.preview || "未命名任务").slice(0, 100)}`,
     sound: needsInput ? "Sosumi" : "Hero",

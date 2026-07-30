@@ -1,10 +1,12 @@
 const { Plugins, Actions, log } = require("./utils/plugin");
 const { CodexClient, PERMISSIONS } = require("./codex-client");
+const { ClaudeClient } = require("./claude-client");
 const {
   taskCard,
   usageCard,
   modelCard,
   permissionCard,
+  valueCard,
   errorCard,
   effortColor
 } = require("./render");
@@ -13,13 +15,36 @@ const { spawn } = require("node:child_process");
 
 const plugin = new Plugins();
 let codex = new CodexClient();
-let snapshot = { threads: [], usage: {}, models: [], config: {} };
+const claude = new ClaudeClient();
+let snapshot = {
+  threads: [],
+  usage: {},
+  models: [],
+  config: {},
+  claude: { threads: [], usage: {}, config: { model: "sonnet", effort: "high" } }
+};
 let refreshTimer = null;
 let refreshInFlight = null;
 let usageTimer = null;
 let usageInFlight = null;
 const visible = new Map();
 const threadStatusCache = new Map();
+const claudeStatusCache = new Map();
+const CLAUDE_TYPES = new Set([
+  "claudetask", "claudemodel", "claudeeffort", "claudeusage5h", "claudeusageweek"
+]);
+
+function isClaudeType(type) {
+  return CLAUDE_TYPES.has(type);
+}
+
+function hasVisibleCodexAction() {
+  return [...visible.values()].some(item => !isClaudeType(item.type));
+}
+
+function hasVisibleClaudeAction() {
+  return [...visible.values()].some(item => isClaudeType(item.type));
+}
 
 async function ensureStarted() {
   if (!codex.ready) await codex.start();
@@ -28,19 +53,30 @@ async function ensureStarted() {
 async function refresh() {
   if (refreshInFlight) return refreshInFlight;
   refreshInFlight = (async () => {
+    if (hasVisibleClaudeAction()) {
+      try {
+        snapshot = { ...snapshot, claude: claude.refresh() };
+      } catch (error) {
+        log.error("Claude refresh failed", error);
+      }
+    }
     try {
-      await ensureStarted();
-      snapshot = await codex.refresh();
-      notifyStatusChanges();
-      renderAll();
+      if (hasVisibleCodexAction()) {
+        await ensureStarted();
+        snapshot = { ...snapshot, ...(await codex.refresh()) };
+      }
     } catch (error) {
       log.error("refresh failed", error);
       // A busy Codex state database can make one refresh slow. Keep the last
       // valid device images instead of incorrectly reporting a disconnect.
       if (!snapshot.threads.length && !snapshot.models.length) {
-        for (const context of visible.keys()) plugin.setImage(context, errorCard(error.message));
+        for (const [context, item] of visible.entries()) {
+          if (!isClaudeType(item.type)) plugin.setImage(context, errorCard(error.message));
+        }
       }
     } finally {
+      notifyStatusChanges();
+      renderAll();
       refreshInFlight = null;
     }
   })();
@@ -59,11 +95,26 @@ function scheduleRefresh() {
 async function refreshUsage() {
   if (usageInFlight) return usageInFlight;
   usageInFlight = (async () => {
+    if (hasVisibleClaudeAction()) {
+      try {
+        snapshot = {
+          ...snapshot,
+          claude: { ...snapshot.claude, usage: claude.refreshUsage() }
+        };
+        for (const [context, item] of visible.entries()) {
+          if (item.type === "claudeusage5h" || item.type === "claudeusageweek") renderOne(context);
+        }
+      } catch (error) {
+        log.error("Claude usage refresh failed", error);
+      }
+    }
     try {
-      await ensureStarted();
-      snapshot = { ...snapshot, usage: await codex.refreshUsage() };
-      for (const [context, item] of visible.entries()) {
-        if (item.type === "usage5h" || item.type === "usageweek") renderOne(context);
+      if (hasVisibleCodexAction()) {
+        await ensureStarted();
+        snapshot = { ...snapshot, usage: await codex.refreshUsage() };
+        for (const [context, item] of visible.entries()) {
+          if (item.type === "usage5h" || item.type === "usageweek") renderOne(context);
+        }
       }
     } catch (error) {
       log.error("usage refresh failed", error);
@@ -94,9 +145,16 @@ function renderOne(context) {
   const item = visible.get(context);
   if (!item) return;
   let image;
-  if (item.type === "task") image = taskCard(snapshot.threads[item.settings.slot || 0], item.settings.slot || 0);
+  if (item.type === "task") {
+    image = taskCard(snapshot.threads[item.settings.slot || 0], item.settings.slot || 0, "CODEX");
+  }
+  if (item.type === "claudetask") {
+    image = taskCard(snapshot.claude.threads[item.settings.slot || 0], item.settings.slot || 0, "CLAUDE");
+  }
   if (item.type === "usage5h") image = usageCard(snapshot.usage?.fiveHour, "CODEX · 5H");
   if (item.type === "usageweek") image = usageCard(snapshot.usage?.week, "CODEX · WEEK");
+  if (item.type === "claudeusage5h") image = usageCard(snapshot.claude.usage?.fiveHour, "CLAUDE · 5H");
+  if (item.type === "claudeusageweek") image = usageCard(snapshot.claude.usage?.week, "CLAUDE · WEEK");
   if (item.type === "model" || item.type === "currentmodel") {
     image = modelCard(codex.currentModel(), codex.currentEffort(), item.mode || "model");
   }
@@ -111,6 +169,13 @@ function renderOne(context) {
   }
   if (item.type === "permission" || item.type === "currentpermission") {
     image = permissionCard(PERMISSIONS[codex.currentPermissionIndex()]);
+  }
+  if (item.type === "claudemodel") {
+    image = valueCard("CL", "MODEL", claude.currentModel(), "#f08c51");
+  }
+  if (item.type === "claudeeffort") {
+    const effort = claude.currentEffort();
+    image = valueCard("CL", "EFFORT", effort, effortColor(effort));
   }
   if (image) plugin.setImage(context, image);
 }
@@ -137,14 +202,26 @@ function commonAction(type, defaults = {}) {
       renderOne(context);
     },
     _propertyInspectorDidAppear({ context }) {
+      const claudeAction = isClaudeType(type);
       plugin.sendToPropertyInspector(`com.tlm.codex-control.${type}`, context, {
+        provider: claudeAction ? "claude" : "codex",
         codexPath: codex.codexPath,
-        connected: codex.ready,
-        threadCount: snapshot.threads.length
+        connected: claudeAction ? true : codex.ready,
+        threadCount: claudeAction ? snapshot.claude.threads.length : snapshot.threads.length,
+        usageCaptureInstalled: claude.usageCaptureInstalled()
       });
     },
     sendToPlugin({ payload }) {
       if (payload?.command === "refresh") refresh();
+      if (payload?.command === "installClaudeUsage") {
+        try {
+          const installed = claude.installUsageCapture();
+          log.info(installed ? "Claude Usage capture installed" : "Claude Usage capture already installed");
+          refresh();
+        } catch (error) {
+          log.error("Claude Usage capture install failed", error);
+        }
+      }
     }
   });
 }
@@ -259,6 +336,52 @@ plugin.usage5h.keyUp = refreshUsage;
 plugin.usageweek = commonAction("usageweek");
 plugin.usageweek.keyUp = refreshUsage;
 
+plugin.claudetask = commonAction("claudetask", { slot: 0, notifyDone: true, notifyInput: true });
+plugin.claudetask.keyUp = ({ context }) => {
+  const slot = Number(plugin.claudetask.data[context]?.slot || 0);
+  const thread = snapshot.claude.threads[slot];
+  if (!thread) return plugin.showAlert(context);
+  openClaudeThread(thread);
+  plugin.showOk(context);
+};
+
+plugin.claudemodel = commonAction("claudemodel");
+plugin.claudemodel.dialRotate = ({ context, payload }) => {
+  try {
+    const model = claude.rotateModel(payload.ticks);
+    snapshot.claude = { ...snapshot.claude, config: { ...snapshot.claude.config, model } };
+    renderAll();
+    plugin.showOk(context);
+  } catch (error) {
+    log.error("Claude model rotate", error);
+    plugin.showAlert(context);
+  }
+};
+plugin.claudemodel.keyUp = ({ context }) => {
+  plugin.claudemodel.dialRotate({ context, payload: { ticks: 1 } });
+};
+
+plugin.claudeeffort = commonAction("claudeeffort");
+plugin.claudeeffort.dialRotate = ({ context, payload }) => {
+  try {
+    const effort = claude.rotateEffort(payload.ticks);
+    snapshot.claude = { ...snapshot.claude, config: { ...snapshot.claude.config, effort } };
+    renderAll();
+    plugin.showOk(context);
+  } catch (error) {
+    log.error("Claude effort rotate", error);
+    plugin.showAlert(context);
+  }
+};
+plugin.claudeeffort.keyUp = ({ context }) => {
+  plugin.claudeeffort.dialRotate({ context, payload: { ticks: 1 } });
+};
+
+plugin.claudeusage5h = commonAction("claudeusage5h");
+plugin.claudeusage5h.keyUp = refreshUsage;
+plugin.claudeusageweek = commonAction("claudeusageweek");
+plugin.claudeusageweek.keyUp = refreshUsage;
+
 plugin.didReceiveGlobalSettings = ({ payload }) => {
   const configured = payload.settings?.codexPath;
   if (configured && configured !== codex.codexPath) {
@@ -287,19 +410,48 @@ function openCodexThread(threadId) {
   }
 }
 
+function openClaudeThread(thread) {
+  const cwd = thread.cwd || process.env.HOME || process.env.USERPROFILE || ".";
+  const command = `cd ${shellQuote(cwd)} && claude --resume ${shellQuote(thread.id)}`;
+  try {
+    if (process.platform === "darwin") {
+      const script = `tell application "Terminal" to do script "${appleScriptText(command)}"`;
+      spawn("/usr/bin/osascript", ["-e", script], { detached: true, stdio: "ignore" }).unref();
+      return;
+    }
+    if (process.platform === "win32") {
+      spawn("cmd.exe", ["/d", "/s", "/c", "start", "Claude", "cmd.exe", "/k", command], {
+        detached: true,
+        stdio: "ignore",
+        windowsHide: true
+      }).unref();
+      return;
+    }
+    spawn("x-terminal-emulator", ["-e", command], { detached: true, stdio: "ignore" }).unref();
+  } catch (error) {
+    log.error("open Claude task", error);
+  }
+}
+
 function notifyStatusChanges() {
   const watched = new Map();
+  const watchedClaude = new Map();
   for (const item of visible.values()) {
-    if (item.type !== "task") continue;
-    const thread = snapshot.threads[Number(item.settings.slot || 0)];
+    if (item.type !== "task" && item.type !== "claudetask") continue;
+    const claudeTask = item.type === "claudetask";
+    const thread = (claudeTask ? snapshot.claude.threads : snapshot.threads)[Number(item.settings.slot || 0)];
     if (!thread) continue;
-    const existing = watched.get(thread.id) || { notifyDone: false, notifyInput: false };
-    watched.set(thread.id, {
+    const target = claudeTask ? watchedClaude : watched;
+    const existing = target.get(thread.id) || { notifyDone: false, notifyInput: false };
+    target.set(thread.id, {
       notifyDone: existing.notifyDone || item.settings.notifyDone !== false,
       notifyInput: existing.notifyInput || item.settings.notifyInput !== false
     });
   }
   for (const event of collectStatusNotifications(threadStatusCache, snapshot.threads, watched)) {
+    showTaskNotification(event.type, event.thread);
+  }
+  for (const event of collectStatusNotifications(claudeStatusCache, snapshot.claude.threads, watchedClaude)) {
     showTaskNotification(event.type, event.thread);
   }
 }
@@ -339,4 +491,9 @@ function playAttentionSound(notification) {
 
 function appleScriptText(value) {
   return String(value).replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\r?\n/g, " ");
+}
+
+function shellQuote(value) {
+  if (process.platform === "win32") return `"${String(value).replace(/"/g, '""')}"`;
+  return `'${String(value).replace(/'/g, `'\\''`)}'`;
 }

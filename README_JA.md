@@ -18,7 +18,7 @@
 [最新版をダウンロード](https://github.com/saheru/vibe-float/releases/latest) ·
 [モジュール](#設定可能なモジュール) ·
 [インストール](#インストール) ·
-[StreamDock](#streamdock-codex-control)
+[StreamDock](#streamdock-vibe-control)
 
 </div>
 
@@ -114,9 +114,9 @@ flowchart LR
     Claude --> ClaudeUsage["Status Line Usage スナップショット"]
 ```
 
-## StreamDock Codex Control
+## StreamDock Vibe Control
 
-リポジトリには Codex 用の汎用 StreamDock プラグインも含まれています。
+リポジトリには Codex と Claude Code 用の汎用 StreamDock プラグインも含まれています。
 
 - 最近のタスクボタン
 - Model / Reasoning Effort の操作
@@ -124,8 +124,11 @@ flowchart LR
 - Sol Effort 専用操作
 - 5 時間・週間 Usage リング
 - 完了・入力待ちの通知
+- Claude CLI タスク表示とターミナルでの再開
+- Claude Model / Effort の個別操作
+- Claude の 5 時間・週間 Usage リング
 
-StreamDock プラグインは Codex 専用です。Vibe Float のデスクトップ版は Codex と Claude Code の両方に対応します。
+Claude Model / Effort は `~/.claude/settings.json` に保存され、新しい Claude Code CLI セッションへ反映されます。Claude Usage アクションのプロパティ画面でローカル Status Line 取得を有効にし、実行中の Claude CLI セッションを再起動してください。
 
 ## ソースからビルド
 

@@ -9,7 +9,7 @@
     <AssemblyName>VibeFloat</AssemblyName>
     <RootNamespace>CodexFloat</RootNamespace>
     <ApplicationIcon>Assets\CodexFloat.ico</ApplicationIcon>
-    <Version>0.4.0</Version>
+    <Version>0.5.0</Version>
     <Authors>saheru</Authors>
     <Description>Configurable floating Codex and Claude Code dashboard for Windows.</Description>
   </PropertyGroup>

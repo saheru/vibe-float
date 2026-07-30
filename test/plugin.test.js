@@ -7,10 +7,16 @@ const vm = require("node:vm");
 
 const { CodexClient, extractUsageWindows, inferThreadStatus, findCodex } = require("../com.tlm.codex-control.sdPlugin/plugin/codex-client");
 const {
+  ClaudeClient,
+  scanSessions,
+  readUsage
+} = require("../com.tlm.codex-control.sdPlugin/plugin/claude-client");
+const {
   taskCard,
   usageCard,
   modelCard,
   permissionCard,
+  valueCard,
   effortColor
 } = require("../com.tlm.codex-control.sdPlugin/plugin/render");
 const { collectStatusNotifications, formatStatusNotification } = require("../com.tlm.codex-control.sdPlugin/plugin/notifications");
@@ -26,7 +32,12 @@ test("manifest defines task, knobs, current-state buttons and usage actions", ()
     "com.tlm.codex-control.currentpermission",
     "com.tlm.codex-control.soleffort",
     "com.tlm.codex-control.usage5h",
-    "com.tlm.codex-control.usageweek"
+    "com.tlm.codex-control.usageweek",
+    "com.tlm.codex-control.claudetask",
+    "com.tlm.codex-control.claudemodel",
+    "com.tlm.codex-control.claudeeffort",
+    "com.tlm.codex-control.claudeusage5h",
+    "com.tlm.codex-control.claudeusageweek"
   ]);
   assert.ok(manifest.Actions.find(action => action.UUID.endsWith(".model")).Controllers.includes("Knob"));
   assert.ok(manifest.Actions.find(action => action.UUID.endsWith(".permission")).Controllers.includes("Knob"));
@@ -192,12 +203,74 @@ test("all visual cards are valid encoded SVG data URLs", () => {
     taskCard({ name: "测试任务", cwd: "/tmp/test", displayStatus: { type: "active" } }, 0),
     usageCard({ usedPercent: 88, windowDurationMins: 300, resetsAt: 2000000000 }, "CODEX · 5H"),
     modelCard({ displayName: "GPT-Test" }, "high"),
+    valueCard("CL", "MODEL", "sonnet", "#f08c51"),
     permissionCard({ name: "工作区", short: "AUTO", color: "#52d681" })
   ];
   for (const card of cards) {
     assert.match(card, /^data:image\/svg\+xml;charset=utf8,/);
     assert.match(decodeURIComponent(card.split(",")[1]), /<svg/);
   }
+});
+
+test("Claude client scans CLI sessions and persists model and effort", () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "vibe-claude-"));
+  const projects = path.join(home, ".claude", "projects", "demo");
+  const settingsPath = path.join(home, ".claude", "settings.json");
+  fs.mkdirSync(projects, { recursive: true });
+  fs.writeFileSync(path.join(projects, "session-1.jsonl"), [
+    JSON.stringify({ type: "last-prompt", lastPrompt: "修复登录页面", cwd: "/tmp/demo" }),
+    JSON.stringify({ type: "user", message: "开始" }),
+    JSON.stringify({
+      type: "assistant",
+      message: { content: [{ type: "text", text: "请选择方案？" }], stop_reason: "end_turn" }
+    })
+  ].join("\n"));
+  const sessions = scanSessions(path.join(home, ".claude", "projects"), 8);
+  assert.equal(sessions.length, 1);
+  assert.equal(sessions[0].id, "session-1");
+  assert.equal(sessions[0].displayStatus.type, "needsInput");
+
+  const client = new ClaudeClient({ home, settingsPath, projectsPath: path.join(home, ".claude", "projects") });
+  client.refresh();
+  assert.equal(client.rotateModel(1), "opus");
+  assert.equal(client.rotateEffort(1), "xhigh");
+  const stored = JSON.parse(fs.readFileSync(settingsPath, "utf8"));
+  assert.equal(stored.model, "opus");
+  assert.equal(stored.effortLevel, "xhigh");
+});
+
+test("Claude usage maps five-hour and weekly Status Line windows", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "vibe-claude-usage-"));
+  const file = path.join(dir, "claude-status.json");
+  fs.writeFileSync(file, JSON.stringify({
+    rate_limits: {
+      five_hour: { used_percentage: 25, resets_at: 100 },
+      seven_day: { used_percentage: 61, resets_at: 200 }
+    }
+  }));
+  const usage = readUsage(file);
+  assert.equal(usage.fiveHour.usedPercent, 25);
+  assert.equal(usage.week.usedPercent, 61);
+});
+
+test("Claude Usage capture preserves an existing Status Line command", () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "vibe-claude-capture-"));
+  const settingsPath = path.join(home, ".claude", "settings.json");
+  fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
+  fs.writeFileSync(settingsPath, JSON.stringify({
+    statusLine: { type: "command", command: "existing-status --compact", padding: 2 },
+    theme: "dark"
+  }));
+  const client = new ClaudeClient({ home, settingsPath });
+  assert.equal(client.installUsageCapture(), true);
+  assert.equal(client.usageCaptureInstalled(), true);
+  assert.equal(client.installUsageCapture(), false);
+  const stored = JSON.parse(fs.readFileSync(settingsPath, "utf8"));
+  assert.equal(stored.theme, "dark");
+  assert.equal(stored.statusLine.padding, 2);
+  assert.match(stored.statusLine.command, /claude-status\.js/);
+  const encoded = stored.statusLine.command.match(/--next-base64 "([^"]*)"/)[1];
+  assert.equal(Buffer.from(encoded, "base64").toString("utf8"), "existing-status --compact");
 });
 
 test("task card shows status and project name without the task title", () => {
@@ -259,6 +332,9 @@ test("system notification includes task title and explicit status", () => {
   assert.equal(done.sound, "Hero");
   assert.equal(done.soundVolume, 2);
   assert.equal(done.soundRepeats, 2);
+
+  const claude = formatStatusNotification("done", { name: "Claude 任务", provider: "claude" });
+  assert.equal(claude.title, "Claude 任务通知");
 });
 
 test("property inspector persists each task slot with its own inspector UUID", () => {
@@ -270,6 +346,7 @@ test("property inspector persists each task slot with its own inspector UUID", (
   for (const id of [
     "slotRow", "slot", "notifyDoneRow", "notifyDone", "notifyInputRow",
     "notifyInput", "codexPath", "hint", "dot", "status", "refresh"
+    , "codexPathRow", "enableClaudeUsage"
   ]) {
     elements[id] = {
       value: "",

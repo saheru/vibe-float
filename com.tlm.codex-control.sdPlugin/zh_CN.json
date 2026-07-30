@@ -1,6 +1,6 @@
 {
   "Localization": {
-    "Codex Control": "Codex 控制台",
+    "Codex Control": "Vibe 控制台",
     "Codex Tasks": "Codex 任务",
     "Model & Effort": "模型与推理层级",
     "Permissions": "权限",
@@ -8,6 +8,11 @@
     "Current Permissions": "当前权限",
     "Sol Effort": "Sol 推理强度",
     "5h Usage": "5 小时用量",
-    "Weekly Usage": "周用量"
+    "Weekly Usage": "周用量",
+    "Claude Tasks": "Claude 任务",
+    "Claude Model": "Claude 模型",
+    "Claude Effort": "Claude 推理强度",
+    "Claude 5h Usage": "Claude 5 小时用量",
+    "Claude Weekly Usage": "Claude 周用量"
   }
 }

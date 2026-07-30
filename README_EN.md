@@ -18,7 +18,7 @@
 [Download the latest release](https://github.com/saheru/vibe-float/releases/latest) ·
 [Modules](#configurable-modules) ·
 [Installation](#installation) ·
-[StreamDock](#streamdock-codex-control)
+[StreamDock](#streamdock-vibe-control)
 
 </div>
 
@@ -114,9 +114,9 @@ flowchart LR
     Claude --> ClaudeUsage["Status Line usage snapshot"]
 ```
 
-## StreamDock Codex Control
+## StreamDock Vibe Control
 
-The repository also contains a generic StreamDock plugin for Codex:
+The repository also contains a generic StreamDock plugin for Codex and Claude Code:
 
 - Recent task buttons
 - Model and reasoning-effort controls
@@ -124,8 +124,11 @@ The repository also contains a generic StreamDock plugin for Codex:
 - Dedicated Sol effort control
 - Five-hour and weekly usage rings
 - Completion and waiting-for-input notifications
+- Claude CLI task cards with terminal resume
+- Separate Claude Model and Effort controls
+- Claude five-hour and weekly usage rings
 
-The StreamDock plugin remains Codex-specific; Vibe Float desktop apps support both Codex and Claude Code.
+Claude Model and Effort changes update `~/.claude/settings.json` for new Claude Code CLI sessions. Enable the local Status Line capture from a Claude Usage action's property inspector, then restart active Claude CLI sessions.
 
 ## Build from source
 

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Codex Control</title>
+  <title>Vibe Control</title>
   <style>
     :root { color-scheme: dark; font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
     body { margin: 0; padding: 16px; background: #20242c; color: #edf2fb; font-size: 13px; }
@@ -39,10 +39,11 @@
       <input id="notifyInput" type="checkbox" checked>
       需要回复时播放提示音并通知
     </label>
-    <label>
+    <label id="codexPathRow">
       Codex 可执行文件
       <input id="codexPath" placeholder="留空自动发现 codex">
     </label>
+    <button id="enableClaudeUsage" hidden>启用 Claude Usage 采集</button>
     <button id="refresh">立即刷新</button>
     <div id="hint" class="hint"></div>
   </div>

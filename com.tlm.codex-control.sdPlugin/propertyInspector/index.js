@@ -12,7 +12,12 @@ const hints = {
   currentpermission: "屏幕显示当前权限；按一下在只读、工作区、完全访问之间切换。",
   soleffort: "Sol 专用控制：旋转旋钮或按屏幕按钮切换 low、medium、high、xhigh、max、ultra。",
   usage5h: "显示 Codex 返回的 5 小时窗口。若当前账号只返回周窗口，将显示 N/A。",
-  usageweek: "显示 Codex 周用量；进度轮颜色会随使用率变为绿、黄、红。"
+  usageweek: "显示 Codex 周用量；进度轮颜色会随使用率变为绿、黄、红。",
+  claudetask: "显示最近 Claude Code CLI 任务；按下后在终端使用 claude --resume 恢复。",
+  claudemodel: "旋转旋钮或按下按键，切换新建 Claude Code CLI 会话使用的默认模型。",
+  claudeeffort: "旋转旋钮或按下按键，切换新建 Claude Code CLI 会话使用的 Effort。",
+  claudeusage5h: "显示 Claude Code 5 小时用量。首次使用请启用本地 Usage 采集。",
+  claudeusageweek: "显示 Claude Code 周用量。首次使用请启用本地 Usage 采集。"
 };
 
 function connectElgatoStreamDeckSocket(port, inPropertyInspectorUuid, registerEvent, info, actionInfo) {
@@ -23,9 +28,14 @@ function connectElgatoStreamDeckSocket(port, inPropertyInspectorUuid, registerEv
   action = parsed.action;
   settings = parsed.payload?.settings || {};
   const kind = action.split(".").pop();
-  $("slotRow").hidden = kind !== "task";
-  $("notifyDoneRow").hidden = kind !== "task";
-  $("notifyInputRow").hidden = kind !== "task";
+  const taskAction = kind === "task" || kind === "claudetask";
+  const claudeAction = kind.startsWith("claude");
+  const claudeUsageAction = kind === "claudeusage5h" || kind === "claudeusageweek";
+  $("slotRow").hidden = !taskAction;
+  $("notifyDoneRow").hidden = !taskAction;
+  $("notifyInputRow").hidden = !taskAction;
+  $("codexPathRow").hidden = claudeAction;
+  $("enableClaudeUsage").hidden = !claudeUsageAction;
   $("slot").value = String(settings.slot || 0);
   $("notifyDone").checked = settings.notifyDone !== false;
   $("notifyInput").checked = settings.notifyInput !== false;
@@ -46,7 +56,9 @@ function connectElgatoStreamDeckSocket(port, inPropertyInspectorUuid, registerEv
     if (message.event === "sendToPropertyInspector") {
       const data = message.payload || {};
       $("dot").classList.toggle("ok", !!data.connected);
-      $("status").textContent = data.connected ? `Codex 已连接 · ${data.threadCount || 0} 个任务` : "Codex 尚未连接";
+      const provider = data.provider === "claude" ? "Claude" : "Codex";
+      $("status").textContent = data.connected ? `${provider} 已连接 · ${data.threadCount || 0} 个任务` : `${provider} 尚未连接`;
+      if (data.usageCaptureInstalled) $("enableClaudeUsage").textContent = "Claude Usage 采集已启用";
       if (!$("codexPath").value) $("codexPath").placeholder = data.codexPath || "留空自动发现 codex";
     }
   };
@@ -64,6 +76,15 @@ $("slot").addEventListener("change", save);
 $("notifyDone").addEventListener("change", save);
 $("notifyInput").addEventListener("change", save);
 $("codexPath").addEventListener("change", save);
+$("enableClaudeUsage").addEventListener("click", () => {
+  socket?.send(JSON.stringify({
+    event: "sendToPlugin",
+    action,
+    context: uuid,
+    payload: { command: "installClaudeUsage" }
+  }));
+  $("enableClaudeUsage").textContent = "已启用，请重启 Claude CLI";
+});
 $("refresh").addEventListener("click", () => {
   save();
   socket?.send(JSON.stringify({ event: "sendToPlugin", action, context: uuid, payload: { command: "refresh" } }));

@@ -1,6 +1,6 @@
 {
   "Localization": {
-    "Codex Control": "Codex Control",
+    "Codex Control": "Vibe Control",
     "Codex Tasks": "Codex Tasks",
     "Model & Effort": "Model & Effort",
     "Permissions": "Permissions",
@@ -8,6 +8,11 @@
     "Current Permissions": "Current Permissions",
     "Sol Effort": "Sol Effort",
     "5h Usage": "5h Usage",
-    "Weekly Usage": "Weekly Usage"
+    "Weekly Usage": "Weekly Usage",
+    "Claude Tasks": "Claude Tasks",
+    "Claude Model": "Claude Model",
+    "Claude Effort": "Claude Effort",
+    "Claude 5h Usage": "Claude 5h Usage",
+    "Claude Weekly Usage": "Claude Weekly Usage"
   }
 }

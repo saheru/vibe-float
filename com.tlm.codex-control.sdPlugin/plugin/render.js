@@ -42,9 +42,12 @@ function projectName(thread) {
   return Array.from(name).slice(0, 4).join("").toUpperCase();
 }
 
-function taskCard(thread, slot) {
+function taskCard(thread, slot, provider = "CODEX") {
+  const providerName = String(provider || "CODEX").toUpperCase();
+  const providerColor = providerName === "CLAUDE" ? "#f08c51" : "#35a7ff";
   if (!thread) {
     return svgData(shell(`
+      <text x="16" y="27" fill="${providerColor}" font-size="10" font-weight="900" font-family="Arial">${providerName}</text>
       <circle cx="72" cy="58" r="27" fill="#54627a" opacity=".16" stroke="#65748b" stroke-width="3"/>
       <text x="72" y="69" text-anchor="middle" fill="#8490a3" font-size="34" font-family="Arial">○</text>
       <text x="72" y="108" text-anchor="middle" fill="#e8edf7" font-size="22" font-weight="800" font-family="Arial">空闲</text>
@@ -62,12 +65,24 @@ function taskCard(thread, slot) {
     thread.displayStatus?.type === "systemError" ? "错误" : "等待";
   const project = projectName(thread);
   return svgData(shell(`
+    <rect x="10" y="10" width="${providerName === "CLAUDE" ? 49 : 42}" height="17" rx="8.5" fill="${providerColor}"/>
+    <text x="${providerName === "CLAUDE" ? 34.5 : 31}" y="22" text-anchor="middle" fill="#ffffff" font-size="8" font-weight="900" font-family="Arial">${providerName}</text>
     <circle cx="72" cy="52" r="27" fill="${status.color}" opacity=".16" stroke="${status.color}" stroke-width="4" filter="url(#glow)"/>
     <text x="72" y="64" text-anchor="middle" fill="${status.color}" font-size="33" font-weight="800" font-family="Arial">${icon}</text>
     <text x="72" y="101" text-anchor="middle" fill="#ffffff" font-size="23" font-weight="900" font-family="Arial">${label}</text>
     <text x="72" y="128" text-anchor="middle" fill="${status.color}" font-size="21" font-weight="900" letter-spacing="1" font-family="Arial">${text(project)}</text>
     <text x="124" y="29" text-anchor="end" fill="${status.color}" font-size="11" font-weight="700" font-family="Arial">#${slot + 1}</text>
   `, status.color));
+}
+
+function valueCard(provider, kind, value, accent = "#f08c51") {
+  const compact = String(value || "--").toUpperCase();
+  return svgData(shell(`
+    <text x="72" y="31" text-anchor="middle" fill="#8fa0b8" font-size="13" font-weight="800" font-family="Arial">${text(String(provider).toUpperCase())} · ${text(String(kind).toUpperCase())}</text>
+    <rect x="17" y="49" width="110" height="59" rx="22" fill="${accent}" opacity=".17" stroke="${accent}" stroke-width="3"/>
+    <text x="72" y="86" text-anchor="middle" fill="${accent}" font-size="${compact.length > 8 ? 18 : 24}" font-weight="900" font-family="Arial">${text(truncate(compact, 11))}</text>
+    <text x="72" y="129" text-anchor="middle" fill="#7f8ca4" font-size="11" font-weight="700" font-family="Arial">按下切换</text>
+  `, accent));
 }
 
 function usageCard(window, label) {
@@ -145,6 +160,7 @@ module.exports = {
   usageCard,
   modelCard,
   permissionCard,
+  valueCard,
   errorCard,
   effortColor,
   truncate

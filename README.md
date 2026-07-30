@@ -26,7 +26,7 @@
 
 ---
 
-本项目提供 **macOS SwiftUI**、**Windows WPF** 悬浮工具和通用 **StreamDock Codex Control** 插件。Vibe Float 从本机 `codex app-server` 与 Claude Code 会话文件读取状态，不需要浏览器扩展或第三方服务端。
+本项目提供 **macOS SwiftUI**、**Windows WPF** 悬浮工具和通用 **StreamDock Vibe Control** 插件。Vibe Float 从本机 `codex app-server` 与 Claude Code 会话文件读取状态，不需要浏览器扩展或第三方服务端。
 
 ![核心能力](docs/images/features.svg)
 
@@ -109,7 +109,8 @@ flowchart LR
     Config --> CLI["Codex CLI 新任务"]
     Threads --> Desktop["Codex Desktop 深链接"]
     Claude --> Resume["Claude --resume"]
-    Dock["StreamDock Codex Control"] --> AS
+    Dock["StreamDock Vibe Control"] --> AS
+    Dock --> Claude
 ```
 
 Vibe Float 默认按以下顺序查找 Codex：
@@ -138,8 +139,15 @@ Sol 模型与推理强度通过 `config/batchWrite` 写入 Codex 用户配置。
 | Sol 推理强度 | 旋钮 / 可视按键 | 切换 Sol effort，并使用分级颜色 |
 | 5h Usage | 可视按键 / 信息屏 | 5 小时限额进度轮 |
 | 周 Usage | 可视按键 / 信息屏 | 周限额、重置时间与进度轮 |
+| Claude 任务 | 可视按键 | 显示最近 Claude CLI 任务状态；点击在终端恢复 |
+| Claude Model | 旋钮 / 可视按键 | 显示并切换新建 Claude CLI 会话的默认模型 |
+| Claude Effort | 旋钮 / 可视按键 | 显示并切换 `low`～`max` |
+| Claude 5h Usage | 可视按键 / 信息屏 | Claude 5 小时限额进度轮 |
+| Claude 周 Usage | 可视按键 / 信息屏 | Claude 7 天限额进度轮 |
 
-任务完成或等待回复时可以播放增强提示音，并显示带任务标题和状态的系统通知。
+Codex 与 Claude 任务完成或等待回复时都可以播放增强提示音，并显示带任务标题、来源和状态的系统通知。Claude 的 Model 与 Effort 写入 `~/.claude/settings.json`，对新建 Claude Code CLI 会话生效。
+
+首次使用 Claude Usage 时，在对应动作的属性面板点击 **启用 Claude Usage 采集**，然后重启正在运行的 Claude CLI 会话。插件会保留并继续调用原有 Status Line 命令。
 
 ### 打包
 
@@ -216,7 +224,7 @@ dotnet publish .\windows\CodexFloat\CodexFloat.csproj `
 │   ├── Package.swift
 │   └── Sources/CodexFloat/
 ├── windows/CodexFloat/               # Windows 10/11 WPF 版本
-├── com.tlm.codex-control.sdPlugin/   # 通用 StreamDock Codex 插件
+├── com.tlm.codex-control.sdPlugin/   # 通用 StreamDock Codex + Claude 插件
 ├── test/plugin.test.js               # StreamDock 插件测试
 ├── docs/images/
 ├── .github/workflows/                 # Windows 自动构建
