@@ -21,8 +21,21 @@ struct VibeFloatApp: App {
             Button("立即刷新") {
                 codex.refresh()
             }
+            Menu("最近任务数量") {
+                ForEach(1...8, id: \.self) { count in
+                    Button {
+                        modules.setTaskCount(count)
+                    } label: {
+                        if modules.taskCount == count {
+                            Label("\(count) 个", systemImage: "checkmark")
+                        } else {
+                            Text("\(count) 个")
+                        }
+                    }
+                }
+            }
             Menu("显示模块") {
-                ForEach(DashboardModule.allCases) { module in
+                ForEach(modules.configurableModules) { module in
                     Toggle(
                         module.title,
                         isOn: Binding(

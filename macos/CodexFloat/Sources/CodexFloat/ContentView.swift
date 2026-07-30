@@ -8,7 +8,7 @@ struct ContentView: View {
     private var visibleModules: [DashboardModule] { modules.ordered }
     private var columnCount: Int {
         let count = max(1, visibleModules.count)
-        return count <= 5 ? count : Int(ceil(Double(count) / 2))
+        return count <= 5 ? count : min(5, Int(ceil(Double(count) / 2)))
     }
     private var rowCount: Int {
         Int(ceil(Double(max(1, visibleModules.count)) / Double(columnCount)))
@@ -78,9 +78,7 @@ struct ContentView: View {
 
     @ViewBuilder
     private func moduleView(_ module: DashboardModule) -> some View {
-        switch module {
-        case .task1, .task2, .task3:
-            let index = module == .task1 ? 0 : module == .task2 ? 1 : 2
+        if let index = module.taskIndex {
             if index < codex.tasks.count {
                 TaskTile(task: codex.tasks[index], index: index) {
                     codex.openTask(codex.tasks[index])
@@ -88,32 +86,39 @@ struct ContentView: View {
             } else {
                 EmptyTaskTile(index: index)
             }
-        case .codexEffort:
-            EffortTile(effort: codex.solEffort, connected: codex.connected) {
-                codex.cycleSolEffort()
+        } else {
+            switch module {
+            case .codexEffort:
+                EffortTile(effort: codex.solEffort, connected: codex.connected) {
+                    codex.cycleSolEffort()
+                }
+            case .codexFiveHourUsage:
+                UsageTile(provider: "CX", period: "5h", usage: codex.fiveHourUsage, connected: codex.connected)
+            case .codexUsage:
+                UsageTile(provider: "CX", period: "周", usage: codex.weeklyUsage, connected: codex.connected)
+            case .claudeModel:
+                ValueControlTile(
+                    provider: "CL",
+                    title: "MODEL",
+                    value: shortClaudeModel(codex.claudeModel),
+                    color: Color(red: 0.95, green: 0.55, blue: 0.32)
+                ) {
+                    codex.cycleClaudeModel()
+                }
+            case .claudeEffort:
+                ValueControlTile(
+                    provider: "CL",
+                    title: "EFFORT",
+                    value: codex.claudeEffort.uppercased(),
+                    color: .effort(codex.claudeEffort)
+                ) {
+                    codex.cycleClaudeEffort()
+                }
+            case .claudeUsage:
+                UsageTile(provider: "CL", period: "周", usage: codex.claudeWeeklyUsage, connected: true)
+            default:
+                EmptyView()
             }
-        case .codexUsage:
-            UsageTile(provider: "CX", usage: codex.weeklyUsage, connected: codex.connected)
-        case .claudeModel:
-            ValueControlTile(
-                provider: "CL",
-                title: "MODEL",
-                value: shortClaudeModel(codex.claudeModel),
-                color: Color(red: 0.95, green: 0.55, blue: 0.32)
-            ) {
-                codex.cycleClaudeModel()
-            }
-        case .claudeEffort:
-            ValueControlTile(
-                provider: "CL",
-                title: "EFFORT",
-                value: codex.claudeEffort.uppercased(),
-                color: .effort(codex.claudeEffort)
-            ) {
-                codex.cycleClaudeEffort()
-            }
-        case .claudeUsage:
-            UsageTile(provider: "CL", usage: codex.claudeWeeklyUsage, connected: true)
         }
     }
 
@@ -240,6 +245,7 @@ private struct EffortTile: View {
 
 private struct UsageTile: View {
     let provider: String
+    let period: String
     let usage: UsageWindow?
     let connected: Bool
 
@@ -251,7 +257,7 @@ private struct UsageTile: View {
     var body: some View {
         TileShell(accent: color, hovering: false) {
             VStack(spacing: 5) {
-                Text("\(provider) · 周")
+                Text("\(provider) · \(period)")
                     .font(.system(size: 15, weight: .black, design: .rounded))
                     .foregroundStyle(.white.opacity(0.85))
                 ZStack {

@@ -28,6 +28,7 @@ public partial class MainWindow : Window
     private bool _refreshingMetadata;
     private bool _refreshingClaude;
     private HashSet<string> _enabledModules = [];
+    private int _taskCount = 3;
 
     public MainWindow()
     {
@@ -37,8 +38,10 @@ public partial class MainWindow : Window
         _claudeTimer.Tick += async (_, _) => await RefreshClaudeAsync();
         _metadataTimer.Tick += async (_, _) => await RefreshMetadataAsync();
         LoadModuleSettings();
+        LoadTaskCount();
         RenderEmptyTasks();
         RenderEffort();
+        RenderUsage(null, CodexFiveHourUsageText, CodexFiveHourUsageArc);
         RenderUsage(null, CodexUsageText, CodexUsageArc);
         RenderUsage(null, ClaudeUsageText, ClaudeUsageArc);
         RenderClaudeControls();
@@ -110,6 +113,7 @@ public partial class MainWindow : Window
             var usageTask = _codex.RequestAsync("account/rateLimits/read", new { });
             await Task.WhenAll(modelsTask, configTask, usageTask);
             ApplyModels(modelsTask.Result, configTask.Result);
+            RenderUsage(ExtractFiveHour(usageTask.Result), CodexFiveHourUsageText, CodexFiveHourUsageArc);
             RenderUsage(ExtractWeek(usageTask.Result), CodexUsageText, CodexUsageArc);
         }
         catch (Exception error)
@@ -207,8 +211,8 @@ public partial class MainWindow : Window
         _tasks.AddRange(_codexTasks
             .Concat(_claudeTasks)
             .OrderByDescending(task => task.UpdatedAt)
-            .Take(3));
-        for (var index = 0; index < 3; index++)
+            .Take(8));
+        for (var index = 0; index < 8; index++)
             RenderTask(index, index < _tasks.Count ? _tasks[index] : null);
     }
 
@@ -276,6 +280,12 @@ public partial class MainWindow : Window
     private string ModuleSettingsPath => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
         "Vibe Float", "modules.json");
+    private string TaskCountPath => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+        "Vibe Float", "task-count.txt");
+    private string CodexFiveHourMigrationPath => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+        "Vibe Float", "codex-5h-added.flag");
 
     private void LoadModuleSettings()
     {
@@ -288,9 +298,28 @@ public partial class MainWindow : Window
         catch { }
         if (_enabledModules.Count == 0)
             _enabledModules = [
-                "task1", "task2", "task3", "codexEffort",
-                "codexUsage", "claudeModel", "claudeEffort", "claudeUsage"
+                "codexEffort", "codexFiveHourUsage", "codexUsage",
+                "claudeModel", "claudeEffort", "claudeUsage"
             ];
+        else if (!File.Exists(CodexFiveHourMigrationPath))
+        {
+            _enabledModules.Add("codexFiveHourUsage");
+            SaveModuleSettings();
+        }
+        Directory.CreateDirectory(Path.GetDirectoryName(CodexFiveHourMigrationPath)!);
+        File.WriteAllText(CodexFiveHourMigrationPath, "1");
+    }
+
+    private void LoadTaskCount()
+    {
+        try
+        {
+            if (File.Exists(TaskCountPath) &&
+                int.TryParse(File.ReadAllText(TaskCountPath), out var count))
+                _taskCount = Math.Clamp(count, 1, 8);
+        }
+        catch { }
+        UpdateTaskCountMenu();
     }
 
     private void SaveModuleSettings()
@@ -309,14 +338,33 @@ public partial class MainWindow : Window
         ApplyModuleLayout(true);
     }
 
+    private void TaskCount_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not MenuItem { Tag: string tag } || !int.TryParse(tag, out var count)) return;
+        _taskCount = Math.Clamp(count, 1, 8);
+        Directory.CreateDirectory(Path.GetDirectoryName(TaskCountPath)!);
+        File.WriteAllText(TaskCountPath, _taskCount.ToString());
+        UpdateTaskCountMenu();
+        ApplyModuleLayout(true);
+    }
+
+    private void UpdateTaskCountMenu()
+    {
+        var items = new[]
+        {
+            TaskCount1, TaskCount2, TaskCount3, TaskCount4,
+            TaskCount5, TaskCount6, TaskCount7, TaskCount8
+        };
+        for (var index = 0; index < items.Length; index++)
+            items[index].IsChecked = index + 1 == _taskCount;
+    }
+
     private void ApplyModuleLayout(bool resize)
     {
         var entries = new (string Key, FrameworkElement View, MenuItem Menu)[]
         {
-            ("task1", TaskButton0, ModuleTask1),
-            ("task2", TaskButton1, ModuleTask2),
-            ("task3", TaskButton2, ModuleTask3),
             ("codexEffort", EffortButton, ModuleCodexEffort),
+            ("codexFiveHourUsage", CodexFiveHourUsageButton, ModuleCodexFiveHourUsage),
             ("codexUsage", CodexUsageButton, ModuleCodexUsage),
             ("claudeModel", ClaudeModelButton, ModuleClaudeModel),
             ("claudeEffort", ClaudeEffortButton, ModuleClaudeEffort),
@@ -328,8 +376,16 @@ public partial class MainWindow : Window
             entry.View.Visibility = enabled ? Visibility.Visible : Visibility.Collapsed;
             entry.Menu.IsChecked = enabled;
         }
-        var count = Math.Max(1, _enabledModules.Count);
-        var columns = count <= 5 ? count : (int)Math.Ceiling(count / 2d);
+        var taskButtons = new FrameworkElement[]
+        {
+            TaskButton0, TaskButton1, TaskButton2, TaskButton3,
+            TaskButton4, TaskButton5, TaskButton6, TaskButton7
+        };
+        for (var index = 0; index < taskButtons.Length; index++)
+            taskButtons[index].Visibility = index < _taskCount ? Visibility.Visible : Visibility.Collapsed;
+
+        var count = Math.Max(1, _taskCount + entries.Count(entry => _enabledModules.Contains(entry.Key)));
+        var columns = count <= 5 ? count : Math.Min(5, (int)Math.Ceiling(count / 2d));
         var rows = (int)Math.Ceiling(count / (double)columns);
         ModuleGrid.Columns = columns;
         ModuleGrid.Rows = rows;
@@ -411,11 +467,11 @@ public partial class MainWindow : Window
 
     private void RenderTask(int index, VibeTask? task)
     {
-        var button = new[] { TaskButton0, TaskButton1, TaskButton2 }[index];
-        var icon = new[] { TaskIcon0, TaskIcon1, TaskIcon2 }[index];
-        var ring = new[] { TaskIconRing0, TaskIconRing1, TaskIconRing2 }[index];
-        var status = new[] { TaskStatus0, TaskStatus1, TaskStatus2 }[index];
-        var project = new[] { TaskProject0, TaskProject1, TaskProject2 }[index];
+        var button = new[] { TaskButton0, TaskButton1, TaskButton2, TaskButton3, TaskButton4, TaskButton5, TaskButton6, TaskButton7 }[index];
+        var icon = new[] { TaskIcon0, TaskIcon1, TaskIcon2, TaskIcon3, TaskIcon4, TaskIcon5, TaskIcon6, TaskIcon7 }[index];
+        var ring = new[] { TaskIconRing0, TaskIconRing1, TaskIconRing2, TaskIconRing3, TaskIconRing4, TaskIconRing5, TaskIconRing6, TaskIconRing7 }[index];
+        var status = new[] { TaskStatus0, TaskStatus1, TaskStatus2, TaskStatus3, TaskStatus4, TaskStatus5, TaskStatus6, TaskStatus7 }[index];
+        var project = new[] { TaskProject0, TaskProject1, TaskProject2, TaskProject3, TaskProject4, TaskProject5, TaskProject6, TaskProject7 }[index];
         if (task is null)
         {
             var gray = Brush("#8490A3");
@@ -487,7 +543,13 @@ public partial class MainWindow : Window
         return new PathGeometry([figure]);
     }
 
-    private static double? ExtractWeek(JsonElement result)
+    private static double? ExtractFiveHour(JsonElement result) =>
+        ExtractWindow(result, 300, duration => duration > 0 && duration <= 600);
+
+    private static double? ExtractWeek(JsonElement result) =>
+        ExtractWindow(result, 10080, duration => duration > 600);
+
+    private static double? ExtractWindow(JsonElement result, double targetMinutes, Func<double, bool> accepts)
     {
         var snapshots = new List<JsonElement>();
         if (result.TryGetProperty("rateLimits", out var canonical)) snapshots.Add(canonical);
@@ -499,8 +561,8 @@ public partial class MainWindow : Window
         return snapshots
             .SelectMany(snapshot => new[] { Property(snapshot, "primary"), Property(snapshot, "secondary") })
             .Where(window => window is { } value &&
-                Number(value, "windowDurationMins") is > 600)
-            .OrderBy(window => Math.Abs(Number(window!.Value, "windowDurationMins")!.Value - 10080))
+                Number(value, "windowDurationMins") is { } duration && accepts(duration))
+            .OrderBy(window => Math.Abs(Number(window!.Value, "windowDurationMins")!.Value - targetMinutes))
             .Select(window => Number(window!.Value, "usedPercent"))
             .FirstOrDefault();
     }
@@ -526,13 +588,14 @@ public partial class MainWindow : Window
 
     private void RenderEmptyTasks()
     {
-        for (var index = 0; index < 3; index++) RenderTask(index, null);
+        for (var index = 0; index < 8; index++) RenderTask(index, null);
     }
 
     private void RenderDisconnected()
     {
         RenderEmptyTasks();
         EffortText.Text = "离线";
+        CodexFiveHourUsageText.Text = "离线";
         CodexUsageText.Text = "离线";
     }
 

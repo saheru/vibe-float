@@ -53,12 +53,19 @@
     <Border.ContextMenu>
       <ContextMenu>
         <MenuItem Header="立即刷新" Click="Refresh_Click"/>
+        <MenuItem Header="最近任务数量">
+          <MenuItem x:Name="TaskCount1" Header="1 个" Tag="1" IsCheckable="True" Click="TaskCount_Click"/>
+          <MenuItem x:Name="TaskCount2" Header="2 个" Tag="2" IsCheckable="True" Click="TaskCount_Click"/>
+          <MenuItem x:Name="TaskCount3" Header="3 个" Tag="3" IsCheckable="True" Click="TaskCount_Click"/>
+          <MenuItem x:Name="TaskCount4" Header="4 个" Tag="4" IsCheckable="True" Click="TaskCount_Click"/>
+          <MenuItem x:Name="TaskCount5" Header="5 个" Tag="5" IsCheckable="True" Click="TaskCount_Click"/>
+          <MenuItem x:Name="TaskCount6" Header="6 个" Tag="6" IsCheckable="True" Click="TaskCount_Click"/>
+          <MenuItem x:Name="TaskCount7" Header="7 个" Tag="7" IsCheckable="True" Click="TaskCount_Click"/>
+          <MenuItem x:Name="TaskCount8" Header="8 个" Tag="8" IsCheckable="True" Click="TaskCount_Click"/>
+        </MenuItem>
         <MenuItem Header="显示模块">
-          <MenuItem x:Name="ModuleTask1" Header="最近任务 1" Tag="task1" IsCheckable="True" Click="ModuleToggle_Click"/>
-          <MenuItem x:Name="ModuleTask2" Header="最近任务 2" Tag="task2" IsCheckable="True" Click="ModuleToggle_Click"/>
-          <MenuItem x:Name="ModuleTask3" Header="最近任务 3" Tag="task3" IsCheckable="True" Click="ModuleToggle_Click"/>
-          <Separator/>
           <MenuItem x:Name="ModuleCodexEffort" Header="Codex · Sol Effort" Tag="codexEffort" IsCheckable="True" Click="ModuleToggle_Click"/>
+          <MenuItem x:Name="ModuleCodexFiveHourUsage" Header="Codex · 5h Usage" Tag="codexFiveHourUsage" IsCheckable="True" Click="ModuleToggle_Click"/>
           <MenuItem x:Name="ModuleCodexUsage" Header="Codex · 周 Usage" Tag="codexUsage" IsCheckable="True" Click="ModuleToggle_Click"/>
           <Separator/>
           <MenuItem x:Name="ModuleClaudeModel" Header="Claude · Model" Tag="claudeModel" IsCheckable="True" Click="ModuleToggle_Click"/>
@@ -103,6 +110,56 @@
           </StackPanel>
         </Button>
 
+        <Button x:Name="TaskButton3" Tag="3" Style="{StaticResource TileButton}" Click="Task_Click">
+          <StackPanel>
+            <Border x:Name="TaskIconRing3" Width="58" Height="58" CornerRadius="29" BorderThickness="4">
+              <TextBlock x:Name="TaskIcon3" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="30" FontWeight="Black"/>
+            </Border>
+            <TextBlock x:Name="TaskStatus3" Margin="0,8,0,0" TextAlignment="Center" FontSize="20" FontWeight="Black"/>
+            <TextBlock x:Name="TaskProject3" Margin="0,5,0,0" TextAlignment="Center" FontSize="12" FontWeight="Black"/>
+          </StackPanel>
+        </Button>
+
+        <Button x:Name="TaskButton4" Tag="4" Style="{StaticResource TileButton}" Click="Task_Click">
+          <StackPanel>
+            <Border x:Name="TaskIconRing4" Width="58" Height="58" CornerRadius="29" BorderThickness="4">
+              <TextBlock x:Name="TaskIcon4" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="30" FontWeight="Black"/>
+            </Border>
+            <TextBlock x:Name="TaskStatus4" Margin="0,8,0,0" TextAlignment="Center" FontSize="20" FontWeight="Black"/>
+            <TextBlock x:Name="TaskProject4" Margin="0,5,0,0" TextAlignment="Center" FontSize="12" FontWeight="Black"/>
+          </StackPanel>
+        </Button>
+
+        <Button x:Name="TaskButton5" Tag="5" Style="{StaticResource TileButton}" Click="Task_Click">
+          <StackPanel>
+            <Border x:Name="TaskIconRing5" Width="58" Height="58" CornerRadius="29" BorderThickness="4">
+              <TextBlock x:Name="TaskIcon5" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="30" FontWeight="Black"/>
+            </Border>
+            <TextBlock x:Name="TaskStatus5" Margin="0,8,0,0" TextAlignment="Center" FontSize="20" FontWeight="Black"/>
+            <TextBlock x:Name="TaskProject5" Margin="0,5,0,0" TextAlignment="Center" FontSize="12" FontWeight="Black"/>
+          </StackPanel>
+        </Button>
+
+        <Button x:Name="TaskButton6" Tag="6" Style="{StaticResource TileButton}" Click="Task_Click">
+          <StackPanel>
+            <Border x:Name="TaskIconRing6" Width="58" Height="58" CornerRadius="29" BorderThickness="4">
+              <TextBlock x:Name="TaskIcon6" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="30" FontWeight="Black"/>
+            </Border>
+            <TextBlock x:Name="TaskStatus6" Margin="0,8,0,0" TextAlignment="Center" FontSize="20" FontWeight="Black"/>
+            <TextBlock x:Name="TaskProject6" Margin="0,5,0,0" TextAlignment="Center" FontSize="12" FontWeight="Black"/>
+          </StackPanel>
+        </Button>
+
+        <Button x:Name="TaskButton7" Tag="7" Style="{StaticResource TileButton}" Click="Task_Click">
+          <StackPanel>
+            <Border x:Name="TaskIconRing7" Width="58" Height="58" CornerRadius="29" BorderThickness="4">
+              <TextBlock x:Name="TaskIcon7" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="30" FontWeight="Black"/>
+            </Border>
+            <TextBlock x:Name="TaskStatus7" Margin="0,8,0,0" TextAlignment="Center" FontSize="20" FontWeight="Black"/>
+            <TextBlock x:Name="TaskProject7" Margin="0,5,0,0" TextAlignment="Center" FontSize="12" FontWeight="Black"/>
+          </StackPanel>
+        </Button>
+
         <Button x:Name="EffortButton" Style="{StaticResource TileButton}" Click="Effort_Click">
           <StackPanel>
             <TextBlock Text="CX · SOL" TextAlignment="Center" FontSize="22" FontWeight="Black"/>
@@ -110,6 +167,17 @@
               <TextBlock x:Name="EffortText" Text="MEDIUM" TextAlignment="Center" FontSize="18" FontWeight="Black"/>
             </Border>
             <TextBlock Text="点击切换" Margin="0,13,0,0" Foreground="#78869B" TextAlignment="Center" FontSize="11"/>
+          </StackPanel>
+        </Button>
+
+        <Button x:Name="CodexFiveHourUsageButton" Style="{StaticResource TileButton}" IsHitTestVisible="False">
+          <StackPanel>
+            <TextBlock Text="CX · 5h" TextAlignment="Center" FontSize="17" FontWeight="Black"/>
+            <Grid Width="96" Height="96" Margin="0,3,0,0">
+              <Ellipse Stroke="#FF243149" StrokeThickness="11"/>
+              <Path x:Name="CodexFiveHourUsageArc" Stroke="#FF53D68A" StrokeThickness="11" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
+              <TextBlock x:Name="CodexFiveHourUsageText" Text="N/A" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="23" FontWeight="Black"/>
+            </Grid>
           </StackPanel>
         </Button>
 

@@ -5,6 +5,7 @@ import Foundation
 final class CodexService: ObservableObject {
     @Published var tasks: [VibeTask] = []
     @Published var solEffort = "medium"
+    @Published var fiveHourUsage: UsageWindow?
     @Published var weeklyUsage: UsageWindow?
     @Published var claudeModel = "sonnet"
     @Published var claudeEffort = "high"
@@ -88,7 +89,7 @@ final class CodexService: ObservableObject {
                 "clientInfo": [
                     "name": "vibe_float",
                     "title": "Vibe Float",
-                    "version": "0.3.2"
+                    "version": "0.4.0"
                 ],
                 "capabilities": ["experimentalApi": true]
             ]) { [weak self] result in
@@ -251,6 +252,7 @@ final class CodexService: ObservableObject {
             guard let self else { return }
             self.isRefreshingUsage = false
             if case .success(let value) = result {
+                self.fiveHourUsage = Self.extractFiveHour(value)
                 self.weeklyUsage = Self.extractWeek(value)
             }
         }
@@ -361,7 +363,7 @@ final class CodexService: ObservableObject {
     private func mergeTasks() {
         tasks = (codexTasks + claudeTasks)
             .sorted { $0.updatedAt > $1.updatedAt }
-            .prefix(3)
+            .prefix(8)
             .map { $0 }
     }
 
@@ -455,6 +457,18 @@ final class CodexService: ObservableObject {
     }
 
     private static func extractWeek(_ result: [String: Any]?) -> UsageWindow? {
+        extractWindow(result, targetMinutes: 10_080) { $0 > 600 }
+    }
+
+    private static func extractFiveHour(_ result: [String: Any]?) -> UsageWindow? {
+        extractWindow(result, targetMinutes: 300) { $0 > 0 && $0 <= 600 }
+    }
+
+    private static func extractWindow(
+        _ result: [String: Any]?,
+        targetMinutes: Double,
+        accepts: (Double) -> Bool
+    ) -> UsageWindow? {
         guard let result else { return nil }
         var snapshots: [[String: Any]] = []
         if let canonical = result["rateLimits"] as? [String: Any] { snapshots.append(canonical) }
@@ -468,15 +482,15 @@ final class CodexService: ObservableObject {
         for snapshot in snapshots {
             for key in ["primary", "secondary"] {
                 if let window = snapshot[key] as? [String: Any],
-                   let duration = number(window["windowDurationMins"]), duration > 600,
+                   let duration = number(window["windowDurationMins"]), accepts(duration),
                    !windows.contains(where: { number($0["windowDurationMins"]) == duration }) {
                     windows.append(window)
                 }
             }
         }
         guard let best = windows.min(by: {
-            abs((number($0["windowDurationMins"]) ?? 0) - 10080)
-                < abs((number($1["windowDurationMins"]) ?? 0) - 10080)
+            abs((number($0["windowDurationMins"]) ?? 0) - targetMinutes)
+                < abs((number($1["windowDurationMins"]) ?? 0) - targetMinutes)
         }) else { return nil }
         return UsageWindow(
             usedPercent: min(100, max(0, number(best["usedPercent"]) ?? 0)),

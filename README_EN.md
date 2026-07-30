@@ -34,14 +34,15 @@ All task and usage data stays on your computer. Codex data comes from the local 
 
 | Module | What it shows | Action |
 |---|---|---|
-| Recent Task 1/2/3 | The three most recently updated Codex or Claude sessions | Open Codex Desktop or resume Claude in Terminal |
+| Recent Tasks 1–8 | A configurable number of the most recently updated Codex or Claude sessions | Open Codex Desktop or resume Claude in Terminal |
 | Codex · Sol Effort | The current Sol reasoning effort with level-specific colors | Click to cycle the effort |
+| Codex · 5h Usage | Live five-hour usage with a threshold-colored progress ring | Refreshes automatically |
 | Codex · Weekly Usage | Live weekly usage with a threshold-colored progress ring | Refreshes automatically |
 | Claude · Model | The default Claude Code model | Click to cycle the model |
 | Claude · Effort | `low`, `medium`, `high`, `xhigh`, or `max` | Click to cycle the effort |
 | Claude · Weekly Usage | Claude's seven-day limit in a separate progress ring | Collected locally through Status Line |
 
-Enable any combination of modules. Vibe Float automatically switches between a single row and a compact grid, then adjusts the window size to match.
+Choose from 1–8 recent task cards and enable any combination of the remaining modules. Codex 5h Usage is placed immediately before Codex Weekly Usage. Vibe Float automatically switches between a single row and a compact grid, then adjusts the window size to match.
 
 ## Automatic task detection
 
@@ -97,6 +98,7 @@ Restart active Claude Code sessions afterward. The bridge preserves and continue
 - Click a model or effort card to cycle its value.
 - Right-click the panel to refresh or quit.
 - Configure visible modules from the macOS menu bar or Windows context menu.
+- Set the number of recent task cards from the same menu.
 
 ## How it works
 

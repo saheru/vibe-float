@@ -34,19 +34,20 @@
 
 | 模块 | 显示 | 操作 |
 |---|---|---|
-| 最近任务 1/2/3 | 混合排列最近的 Codex 与 Claude 任务，显示来源、状态和项目缩写 | Codex 跳转桌面任务；Claude 在终端恢复会话 |
+| 最近任务 1～8 | 数量可设，混合排列最近的 Codex 与 Claude 任务，显示来源、状态和项目缩写 | Codex 跳转桌面任务；Claude 在终端恢复会话 |
 | Codex · Sol Effort | `minimal`～`ultra`，不同 effort 使用不同颜色 | 点击循环切换 |
+| Codex · 5h Usage | 5 小时限额、阈值颜色和动态进度轮 | 自动刷新 |
 | Codex · 周 Usage | 实时百分比、阈值颜色和动态进度轮 | 自动刷新 |
 | Claude · Model | 当前 Claude Code 模型 | 点击循环切换 |
 | Claude · Effort | `low`～`max` | 点击循环切换 |
 | Claude · 周 Usage | Claude 7d 限额进度轮 | 通过本地 Status Line 采集刷新 |
 
-所有模块都可以单独开关。Vibe Float 会根据启用数量自动切换单行或多行网格，并同步调整窗口尺寸。
+最近任务数量可以在菜单中设置为 1～8 个，其余模块均可单独开关。Codex · 5h Usage 固定排在 Codex · 周 Usage 之前。Vibe Float 会根据启用数量自动切换单行或多行网格，并同步调整窗口尺寸。
 
 ## 🖥 使用方法
 
 - 面板始终置顶，并可显示在所有桌面空间。
-- 从 macOS 菜单栏或 Windows 面板右键菜单进入“显示模块”，自由组合模块。
+- 从 macOS 菜单栏或 Windows 面板右键菜单设置“最近任务数量”，并在“显示模块”中自由组合其余模块。
 - 拖动空白区域移动窗口。
 - 拖动右下角的白色缩放手柄等比调整大小。
 - 右键面板可立即刷新或退出。
@@ -103,7 +104,7 @@ flowchart LR
     Float["Vibe Float<br/>SwiftUI / WPF"] --> AS["本机 codex app-server"]
     Float --> Claude["Claude Code 本地会话与配置"]
     AS --> Threads["最近任务与状态"]
-    AS --> Limits["账户周 Usage"]
+    AS --> Limits["账户 5h / 周 Usage"]
     Float --> Config["Codex 用户配置"]
     Config --> CLI["Codex CLI 新任务"]
     Threads --> Desktop["Codex Desktop 深链接"]
