@@ -141,10 +141,10 @@ private struct TaskTile: View {
                         Text(task.state.label)
                             .font(.system(size: 19, weight: .black, design: .rounded))
                             .foregroundStyle(.white)
-                        Text(task.projectCode)
-                            .font(.system(size: 17, weight: .black, design: .rounded))
-                            .tracking(1)
-                            .foregroundStyle(task.state.color)
+                        Text(task.sourceProjectLabel)
+                            .font(.system(size: task.provider == .claude ? 11 : 12, weight: .black, design: .rounded))
+                            .tracking(0.3)
+                            .foregroundStyle(task.provider.color)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     Text("#\(index + 1)")
@@ -153,10 +153,13 @@ private struct TaskTile: View {
                         .padding(8)
                 }
                 .overlay(alignment: .topLeading) {
-                    Text(task.provider.badge)
-                        .font(.system(size: 9, weight: .black, design: .rounded))
-                        .foregroundStyle(task.provider == .claude ? Color.orange : Color.blue)
-                        .padding(8)
+                    Text(task.provider.displayName.uppercased())
+                        .font(.system(size: 8, weight: .black, design: .rounded))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 7)
+                        .frame(height: 18)
+                        .background(task.provider.color, in: Capsule())
+                        .padding(7)
                 }
             }
         }
@@ -381,8 +384,13 @@ private struct WindowConfigurator: NSViewRepresentable {
                 width: max(260, min(760, idealSize.width)),
                 height: max(150, min(520, idealSize.height))
             )
+            let visible = (window.screen ?? NSScreen.main)?.visibleFrame ?? NSScreen.main?.frame ?? .zero
+            let proposedX = window.frame.minX
+            let proposedY = oldTop - size.height
+            let x = min(max(proposedX, visible.minX), max(visible.minX, visible.maxX - size.width))
+            let y = min(max(proposedY, visible.minY), max(visible.minY, visible.maxY - size.height))
             window.setFrame(
-                NSRect(x: window.frame.minX, y: oldTop - size.height, width: size.width, height: size.height),
+                NSRect(x: x, y: y, width: size.width, height: size.height),
                 display: true,
                 animate: coordinator.configured
             )

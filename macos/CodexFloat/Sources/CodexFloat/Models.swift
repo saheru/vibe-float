@@ -18,6 +18,13 @@ enum TaskProvider: String {
         case .claude: "Claude"
         }
     }
+
+    var color: Color {
+        switch self {
+        case .codex: Color(red: 0.21, green: 0.65, blue: 1)
+        case .claude: Color(red: 0.95, green: 0.55, blue: 0.32)
+        }
+    }
 }
 
 enum TaskState: String {
@@ -70,6 +77,10 @@ struct VibeTask: Identifiable {
         let name = URL(fileURLWithPath: cwd).lastPathComponent
         guard !name.isEmpty else { return provider.badge }
         return String(name.prefix(4)).uppercased()
+    }
+
+    var sourceProjectLabel: String {
+        "\(provider.displayName.uppercased())·\(projectCode)"
     }
 }
 

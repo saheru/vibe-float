@@ -437,8 +437,9 @@ public partial class MainWindow : Window
         icon.Text = glyph; icon.Foreground = brush;
         ring.BorderBrush = brush; ring.Background = Brush($"20{color[1..]}");
         status.Text = label;
-        var provider = task.Provider == TaskProvider.Claude ? "CL" : "CX";
-        project.Text = $"{provider} · {ProjectCode(task.Cwd, provider)}"; project.Foreground = brush;
+        var provider = task.Provider == TaskProvider.Claude ? "CLAUDE" : "CODEX";
+        var providerColor = task.Provider == TaskProvider.Claude ? Brush("#F08C51") : Brush("#35A7FF");
+        project.Text = $"{provider}·{ProjectCode(task.Cwd, provider)}"; project.Foreground = providerColor;
         button.ToolTip = $"[{(task.Provider == TaskProvider.Claude ? "Claude" : "Codex")}] {task.Title}";
     }
 

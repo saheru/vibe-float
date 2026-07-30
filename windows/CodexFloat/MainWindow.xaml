@@ -79,7 +79,7 @@
               <TextBlock x:Name="TaskIcon0" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="30" FontWeight="Black"/>
             </Border>
             <TextBlock x:Name="TaskStatus0" Margin="0,8,0,0" TextAlignment="Center" FontSize="20" FontWeight="Black"/>
-            <TextBlock x:Name="TaskProject0" Margin="0,5,0,0" TextAlignment="Center" FontSize="15" FontWeight="Black"/>
+            <TextBlock x:Name="TaskProject0" Margin="0,5,0,0" TextAlignment="Center" FontSize="12" FontWeight="Black"/>
           </StackPanel>
         </Button>
 
@@ -89,7 +89,7 @@
               <TextBlock x:Name="TaskIcon1" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="30" FontWeight="Black"/>
             </Border>
             <TextBlock x:Name="TaskStatus1" Margin="0,8,0,0" TextAlignment="Center" FontSize="20" FontWeight="Black"/>
-            <TextBlock x:Name="TaskProject1" Margin="0,5,0,0" TextAlignment="Center" FontSize="15" FontWeight="Black"/>
+            <TextBlock x:Name="TaskProject1" Margin="0,5,0,0" TextAlignment="Center" FontSize="12" FontWeight="Black"/>
           </StackPanel>
         </Button>
 
@@ -99,7 +99,7 @@
               <TextBlock x:Name="TaskIcon2" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="30" FontWeight="Black"/>
             </Border>
             <TextBlock x:Name="TaskStatus2" Margin="0,8,0,0" TextAlignment="Center" FontSize="20" FontWeight="Black"/>
-            <TextBlock x:Name="TaskProject2" Margin="0,5,0,0" TextAlignment="Center" FontSize="15" FontWeight="Black"/>
+            <TextBlock x:Name="TaskProject2" Margin="0,5,0,0" TextAlignment="Center" FontSize="12" FontWeight="Black"/>
           </StackPanel>
         </Button>
 
