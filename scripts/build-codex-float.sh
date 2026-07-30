@@ -8,6 +8,8 @@ X86_BUILD="$PROJECT/.build-x86/x86_64-apple-macosx/release"
 APP="$ROOT/dist/Codex Float.app"
 UNIVERSAL="$PROJECT/.build/CodexFloat-universal"
 
+"$ROOT/scripts/build-icons.sh"
+
 cd "$PROJECT"
 swift build -c release
 swift build -c release --arch x86_64 --scratch-path .build-x86
@@ -16,6 +18,7 @@ xcrun lipo -create "$BUILD/CodexFloat" "$X86_BUILD/CodexFloat" -output "$UNIVERS
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$UNIVERSAL" "$APP/Contents/MacOS/CodexFloat"
+cp "$PROJECT/Resources/CodexFloat.icns" "$APP/Contents/Resources/CodexFloat.icns"
 
 cat > "$APP/Contents/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
@@ -28,9 +31,10 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
   <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
   <key>CFBundleName</key><string>Codex Float</string>
   <key>CFBundleDisplayName</key><string>Codex Float</string>
+  <key>CFBundleIconFile</key><string>CodexFloat</string>
   <key>CFBundlePackageType</key><string>APPL</string>
-  <key>CFBundleShortVersionString</key><string>0.2.1</string>
-  <key>CFBundleVersion</key><string>5</string>
+  <key>CFBundleShortVersionString</key><string>0.2.2</string>
+  <key>CFBundleVersion</key><string>6</string>
   <key>LSMinimumSystemVersion</key><string>14.0</string>
   <key>LSUIElement</key><true/>
   <key>NSHighResolutionCapable</key><true/>

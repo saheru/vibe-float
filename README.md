@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="docs/images/app-icon.png" width="128" alt="Codex Float icon">
+
 ![Codex Float](docs/images/hero.svg)
 
 # Codex Float & StreamDock Control
