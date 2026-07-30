@@ -1,0 +1,22 @@
+.DS_Store
+dist/
+*.log
+*.tmp
+
+# Local StreamDock / Mirabox development workspace. Kept locally, intentionally
+# excluded from the public Codex Float repository.
+/com.tlm.codex-control.sdPlugin/
+/com.tlm.spotify-control.sdPlugin/
+/test/
+/package.json
+/package-lock.json
+/scripts/install-macos.sh
+/scripts/install-spotify-macos.sh
+/scripts/package.sh
+
+macos/CodexFloat/.build/
+macos/CodexFloat/.build-x86/
+
+*.backup.*
+*.old.*
+.swiftpm/

@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>CodexFloat</AssemblyName>
+    <RootNamespace>CodexFloat</RootNamespace>
+    <ApplicationIcon />
+    <Version>0.2.0</Version>
+    <Authors>saheru</Authors>
+    <Description>Floating Codex task, Sol effort, and usage dashboard for Windows.</Description>
+  </PropertyGroup>
+</Project>

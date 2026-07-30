@@ -1,0 +1,140 @@
+<Window x:Class="CodexFloat.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        Title="Codex Float"
+        Width="800" Height="220" MinWidth="560" MinHeight="165"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        Topmost="True" ShowInTaskbar="True" ResizeMode="NoResize"
+        MouseLeftButtonDown="Window_MouseLeftButtonDown"
+        Closed="Window_Closed">
+  <Window.Resources>
+    <LinearGradientBrush x:Key="TileBackground" StartPoint="0,0" EndPoint="1,1">
+      <GradientStop Color="#FF172238" Offset="0"/>
+      <GradientStop Color="#FF080C14" Offset="1"/>
+    </LinearGradientBrush>
+    <Style x:Key="TileButton" TargetType="Button">
+      <Setter Property="Margin" Value="5"/>
+      <Setter Property="Padding" Value="8"/>
+      <Setter Property="Foreground" Value="White"/>
+      <Setter Property="Background" Value="{StaticResource TileBackground}"/>
+      <Setter Property="BorderBrush" Value="#334E8CFF"/>
+      <Setter Property="BorderThickness" Value="1.5"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="Border" CornerRadius="20"
+                    Background="{TemplateBinding Background}"
+                    BorderBrush="{TemplateBinding BorderBrush}"
+                    BorderThickness="{TemplateBinding BorderThickness}"
+                    Padding="{TemplateBinding Padding}">
+              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Border" Property="BorderBrush" Value="#CCFFFFFF"/>
+                <Setter TargetName="Border" Property="RenderTransform">
+                  <Setter.Value><ScaleTransform ScaleX="1.02" ScaleY="1.02"/></Setter.Value>
+                </Setter>
+                <Setter TargetName="Border" Property="RenderTransformOrigin" Value=".5,.5"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+  </Window.Resources>
+
+  <Border x:Name="PanelRoot" CornerRadius="28" Padding="12"
+          Background="#E61B1F28" BorderBrush="#30FFFFFF" BorderThickness="1">
+    <Border.ContextMenu>
+      <ContextMenu>
+        <MenuItem Header="立即刷新" Click="Refresh_Click"/>
+        <Separator/>
+        <MenuItem Header="退出 Codex Float" Click="Exit_Click"/>
+      </ContextMenu>
+    </Border.ContextMenu>
+
+    <Grid>
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*"/>
+        <ColumnDefinition Width="*"/>
+        <ColumnDefinition Width="*"/>
+        <ColumnDefinition Width="*"/>
+        <ColumnDefinition Width="*"/>
+      </Grid.ColumnDefinitions>
+
+      <Button x:Name="TaskButton0" Grid.Column="0" Tag="0" Style="{StaticResource TileButton}" Click="Task_Click">
+        <StackPanel>
+          <Border x:Name="TaskIconRing0" Width="58" Height="58" CornerRadius="29" BorderThickness="4">
+            <TextBlock x:Name="TaskIcon0" HorizontalAlignment="Center" VerticalAlignment="Center"
+                       FontSize="30" FontWeight="Black"/>
+          </Border>
+          <TextBlock x:Name="TaskStatus0" Margin="0,8,0,0" TextAlignment="Center" FontSize="20" FontWeight="Black"/>
+          <TextBlock x:Name="TaskProject0" Margin="0,5,0,0" TextAlignment="Center" FontSize="17" FontWeight="Black"/>
+        </StackPanel>
+      </Button>
+
+      <Button x:Name="TaskButton1" Grid.Column="1" Tag="1" Style="{StaticResource TileButton}" Click="Task_Click">
+        <StackPanel>
+          <Border x:Name="TaskIconRing1" Width="58" Height="58" CornerRadius="29" BorderThickness="4">
+            <TextBlock x:Name="TaskIcon1" HorizontalAlignment="Center" VerticalAlignment="Center"
+                       FontSize="30" FontWeight="Black"/>
+          </Border>
+          <TextBlock x:Name="TaskStatus1" Margin="0,8,0,0" TextAlignment="Center" FontSize="20" FontWeight="Black"/>
+          <TextBlock x:Name="TaskProject1" Margin="0,5,0,0" TextAlignment="Center" FontSize="17" FontWeight="Black"/>
+        </StackPanel>
+      </Button>
+
+      <Button x:Name="TaskButton2" Grid.Column="2" Tag="2" Style="{StaticResource TileButton}" Click="Task_Click">
+        <StackPanel>
+          <Border x:Name="TaskIconRing2" Width="58" Height="58" CornerRadius="29" BorderThickness="4">
+            <TextBlock x:Name="TaskIcon2" HorizontalAlignment="Center" VerticalAlignment="Center"
+                       FontSize="30" FontWeight="Black"/>
+          </Border>
+          <TextBlock x:Name="TaskStatus2" Margin="0,8,0,0" TextAlignment="Center" FontSize="20" FontWeight="Black"/>
+          <TextBlock x:Name="TaskProject2" Margin="0,5,0,0" TextAlignment="Center" FontSize="17" FontWeight="Black"/>
+        </StackPanel>
+      </Button>
+
+      <Button x:Name="EffortButton" Grid.Column="3" Style="{StaticResource TileButton}" Click="Effort_Click">
+        <StackPanel>
+          <TextBlock Text="SOL" TextAlignment="Center" FontSize="31" FontWeight="Black"/>
+          <Border x:Name="EffortPill" Margin="0,18,0,0" Padding="12,6" CornerRadius="18" BorderThickness="2">
+            <TextBlock x:Name="EffortText" Text="MEDIUM" TextAlignment="Center" FontSize="18" FontWeight="Black"/>
+          </Border>
+          <TextBlock Text="点击切换" Margin="0,13,0,0" Foreground="#78869B" TextAlignment="Center" FontSize="11"/>
+        </StackPanel>
+      </Button>
+
+      <Button Grid.Column="4" Style="{StaticResource TileButton}" IsHitTestVisible="False">
+        <StackPanel>
+          <TextBlock Text="周" TextAlignment="Center" FontSize="17" FontWeight="Black"/>
+          <Grid Width="96" Height="96" Margin="0,3,0,0">
+            <Ellipse Stroke="#FF243149" StrokeThickness="11"/>
+            <Path x:Name="UsageArc" Stroke="#FF53D68A" StrokeThickness="11"
+                  StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
+            <TextBlock x:Name="UsageText" Text="N/A" HorizontalAlignment="Center" VerticalAlignment="Center"
+                       FontSize="23" FontWeight="Black"/>
+          </Grid>
+        </StackPanel>
+      </Button>
+
+      <Thumb x:Name="ResizeThumb" Grid.Column="4" Width="28" Height="28"
+             HorizontalAlignment="Right" VerticalAlignment="Bottom"
+             Cursor="SizeNWSE" DragDelta="ResizeThumb_DragDelta">
+        <Thumb.Template>
+          <ControlTemplate TargetType="Thumb">
+            <Border Background="#AA000000" CornerRadius="8">
+              <TextBlock Text="◢" Foreground="White" FontSize="17"
+                         HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+          </ControlTemplate>
+        </Thumb.Template>
+      </Thumb>
+    </Grid>
+  </Border>
+</Window>
