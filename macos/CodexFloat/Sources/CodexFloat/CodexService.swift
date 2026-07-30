@@ -16,8 +16,14 @@ final class CodexService: ObservableObject {
     private var pending: [Int: (Result<[String: Any], Error>) -> Void] = [:]
     private var models: [[String: Any]] = []
     private var supportedSolEfforts: [String] = ["low", "medium", "high", "xhigh"]
-    private var refreshTimer: Timer?
-    private var isRefreshing = false
+    private var taskTimer: Timer?
+    private var usageTimer: Timer?
+    private var staticTimer: Timer?
+    private var eventRefreshTimer: Timer?
+    private var isRefreshingTasks = false
+    private var isRefreshingUsage = false
+    private var isRefreshingStatic = false
+    private var stateCache: [String: (signature: String, state: TaskState)] = [:]
 
     func start() {
         guard process == nil else { return }
@@ -48,7 +54,7 @@ final class CodexService: ObservableObject {
                 "clientInfo": [
                     "name": "codex_float",
                     "title": "Codex Float",
-                    "version": "0.2.0"
+                    "version": "0.2.1"
                 ],
                 "capabilities": ["experimentalApi": true]
             ]) { [weak self] result in
@@ -60,8 +66,14 @@ final class CodexService: ObservableObject {
                 self.notify("initialized", params: [:])
                 self.connected = true
                 self.refresh()
-                self.refreshTimer = Timer.scheduledTimer(withTimeInterval: 3, repeats: true) { [weak self] _ in
-                    Task { @MainActor in self?.refresh() }
+                self.taskTimer = Timer.scheduledTimer(withTimeInterval: 0.8, repeats: true) { [weak self] _ in
+                    Task { @MainActor in self?.refreshTasks() }
+                }
+                self.usageTimer = Timer.scheduledTimer(withTimeInterval: 3, repeats: true) { [weak self] _ in
+                    Task { @MainActor in self?.refreshUsage() }
+                }
+                self.staticTimer = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak self] _ in
+                    Task { @MainActor in self?.refreshStatic() }
                 }
             }
         } catch {
@@ -70,8 +82,14 @@ final class CodexService: ObservableObject {
     }
 
     func stop() {
-        refreshTimer?.invalidate()
-        refreshTimer = nil
+        taskTimer?.invalidate()
+        usageTimer?.invalidate()
+        staticTimer?.invalidate()
+        eventRefreshTimer?.invalidate()
+        taskTimer = nil
+        usageTimer = nil
+        staticTimer = nil
+        eventRefreshTimer = nil
         process?.terminate()
         process = nil
         connected = false
@@ -109,47 +127,66 @@ final class CodexService: ObservableObject {
     }
 
     func refresh() {
-        guard connected, !isRefreshing else { return }
-        isRefreshing = true
-        let group = DispatchGroup()
-        var threadResult: [String: Any]?
-        var modelResult: [String: Any]?
-        var configResult: [String: Any]?
-        var usageResult: [String: Any]?
-        var refreshError: Error?
+        refreshTasks()
+        refreshUsage()
+        refreshStatic()
+    }
 
-        func fetch(_ method: String, _ params: [String: Any], into setter: @escaping ([String: Any]) -> Void) {
-            group.enter()
-            request(method, params: params) { result in
-                if case .success(let value) = result { setter(value) }
-                if case .failure(let error) = result { refreshError = error }
-                group.leave()
-            }
-        }
-
-        fetch("thread/list", [
+    func refreshTasks() {
+        guard connected, !isRefreshingTasks else { return }
+        isRefreshingTasks = true
+        request("thread/list", params: [
             "limit": 16,
             "sortKey": "updated_at",
             "sortDirection": "desc",
             "archived": false,
             "useStateDbOnly": true
-        ]) { threadResult = $0 }
-        fetch("model/list", ["limit": 100, "includeHidden": false]) { modelResult = $0 }
-        fetch("config/read", ["includeLayers": false]) { configResult = $0 }
-        fetch("account/rateLimits/read", [:]) { usageResult = $0 }
+        ]) { [weak self] result in
+            guard let self else { return }
+            self.isRefreshingTasks = false
+            switch result {
+            case .success(let value):
+                self.applyThreads(value)
+                self.connected = true
+                self.lastError = nil
+            case .failure(let error):
+                self.fail(error)
+            }
+        }
+    }
 
+    func refreshUsage() {
+        guard connected, !isRefreshingUsage else { return }
+        isRefreshingUsage = true
+        request("account/rateLimits/read", params: [:]) { [weak self] result in
+            guard let self else { return }
+            self.isRefreshingUsage = false
+            if case .success(let value) = result {
+                self.weeklyUsage = Self.extractWeek(value)
+            }
+        }
+    }
+
+    func refreshStatic() {
+        guard connected, !isRefreshingStatic else { return }
+        isRefreshingStatic = true
+        let group = DispatchGroup()
+        var modelResult: [String: Any]?
+        var configResult: [String: Any]?
+        group.enter()
+        request("model/list", params: ["limit": 100, "includeHidden": false]) { result in
+            if case .success(let value) = result { modelResult = value }
+            group.leave()
+        }
+        group.enter()
+        request("config/read", params: ["includeLayers": false]) { result in
+            if case .success(let value) = result { configResult = value }
+            group.leave()
+        }
         group.notify(queue: .main) { [weak self] in
             guard let self else { return }
-            self.isRefreshing = false
-            if let refreshError {
-                self.fail(refreshError)
-                return
-            }
+            self.isRefreshingStatic = false
             self.apply(models: modelResult, config: configResult)
-            self.applyThreads(threadResult)
-            self.weeklyUsage = Self.extractWeek(usageResult)
-            self.connected = true
-            self.lastError = nil
         }
     }
 
@@ -196,12 +233,12 @@ final class CodexService: ObservableObject {
                     id: id,
                     title: title,
                     cwd: cwd,
-                    state: Self.inferState(item)
+                    state: inferState(item)
                 )
             }
     }
 
-    private static func inferState(_ thread: [String: Any]) -> TaskState {
+    private func inferState(_ thread: [String: Any]) -> TaskState {
         let status = thread["status"] as? [String: Any]
         let type = status?["type"] as? String
         let flags = status?["activeFlags"] as? [String] ?? []
@@ -212,7 +249,16 @@ final class CodexService: ObservableObject {
             return TaskState(rawValue: type) ?? .notLoaded
         }
         guard let path = thread["path"] as? String else { return .idle }
-        return inferStateFromRollout(path)
+        let attributes = try? FileManager.default.attributesOfItem(atPath: path)
+        let size = (attributes?[.size] as? NSNumber)?.int64Value ?? -1
+        let modified = (attributes?[.modificationDate] as? Date)?.timeIntervalSince1970 ?? 0
+        let signature = "\(size):\(modified)"
+        if let cached = stateCache[path], cached.signature == signature {
+            return cached.state
+        }
+        let state = Self.inferStateFromRollout(path)
+        stateCache[path] = (signature, state)
+        return state
     }
 
     private static func inferStateFromRollout(_ path: String) -> TaskState {
@@ -351,13 +397,23 @@ final class CodexService: ObservableObject {
                     callback(.success(object["result"] as? [String: Any] ?? [:]))
                 }
             }
+            if let method = object["method"] as? String, method.hasPrefix("thread/"), eventRefreshTimer == nil {
+                eventRefreshTimer = Timer.scheduledTimer(withTimeInterval: 0.12, repeats: false) { [weak self] _ in
+                    Task { @MainActor in
+                        self?.eventRefreshTimer = nil
+                        self?.refreshTasks()
+                    }
+                }
+            }
         }
     }
 
     private func fail(_ error: Error) {
         lastError = error.localizedDescription
         connected = false
-        isRefreshing = false
+        isRefreshingTasks = false
+        isRefreshingUsage = false
+        isRefreshingStatic = false
     }
 
     private func findCodex() throws -> String {

@@ -15,7 +15,7 @@
       <text x="175" y="246" text-anchor="middle" fill="#91a0b8" font-size="17">运行 · 待回复 · 完成 · 错误</text>
       <text x="175" y="278" text-anchor="middle" fill="#91a0b8" font-size="17">点击直接跳转对应任务</text>
       <rect x="92" y="311" width="166" height="30" rx="15" fill="#35a7ff" opacity=".12"/>
-      <text x="175" y="332" text-anchor="middle" fill="#35a7ff" font-size="14" font-weight="800">3 秒实时刷新</text>
+      <text x="175" y="332" text-anchor="middle" fill="#35a7ff" font-size="14" font-weight="800">事件触发 · 0.8 秒兜底</text>
     </g>
     <g transform="translate(425 35)">
       <rect width="350" height="360" rx="26" fill="url(#bg)" stroke="#ffbd45" stroke-opacity=".55"/>

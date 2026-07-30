@@ -12,18 +12,21 @@ namespace CodexFloat;
 public partial class MainWindow : Window
 {
     private readonly CodexClient _codex = new();
-    private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromSeconds(3) };
+    private readonly DispatcherTimer _taskTimer = new() { Interval = TimeSpan.FromMilliseconds(800) };
+    private readonly DispatcherTimer _metadataTimer = new() { Interval = TimeSpan.FromSeconds(3) };
     private readonly List<TaskCard> _tasks = [];
     private List<string> _solEfforts = ["low", "medium", "high", "xhigh"];
     private string? _solModel;
     private string _effort = "medium";
-    private bool _refreshing;
+    private bool _refreshingTasks;
+    private bool _refreshingMetadata;
 
     public MainWindow()
     {
         InitializeComponent();
         Loaded += async (_, _) => await StartAsync();
-        _timer.Tick += async (_, _) => await RefreshAsync();
+        _taskTimer.Tick += async (_, _) => await RefreshTasksAsync();
+        _metadataTimer.Tick += async (_, _) => await RefreshMetadataAsync();
         RenderEmptyTasks();
         RenderEffort();
         RenderUsage(null);
@@ -35,7 +38,8 @@ public partial class MainWindow : Window
         {
             await _codex.StartAsync();
             await RefreshAsync();
-            _timer.Start();
+            _taskTimer.Start();
+            _metadataTimer.Start();
         }
         catch (Exception error)
         {
@@ -46,11 +50,16 @@ public partial class MainWindow : Window
 
     private async Task RefreshAsync()
     {
-        if (_refreshing) return;
-        _refreshing = true;
+        await Task.WhenAll(RefreshTasksAsync(), RefreshMetadataAsync());
+    }
+
+    private async Task RefreshTasksAsync()
+    {
+        if (_refreshingTasks) return;
+        _refreshingTasks = true;
         try
         {
-            var threadsTask = _codex.RequestAsync("thread/list", new
+            var result = await _codex.RequestAsync("thread/list", new
             {
                 limit = 16,
                 sortKey = "updated_at",
@@ -58,13 +67,7 @@ public partial class MainWindow : Window
                 archived = false,
                 useStateDbOnly = true
             });
-            var modelsTask = _codex.RequestAsync("model/list", new { limit = 100, includeHidden = false });
-            var configTask = _codex.RequestAsync("config/read", new { includeLayers = false });
-            var usageTask = _codex.RequestAsync("account/rateLimits/read", new { });
-            await Task.WhenAll(threadsTask, modelsTask, configTask, usageTask);
-            ApplyModels(modelsTask.Result, configTask.Result);
-            ApplyThreads(threadsTask.Result);
-            RenderUsage(ExtractWeek(usageTask.Result));
+            ApplyThreads(result);
             Title = "Codex Float";
         }
         catch (Exception error)
@@ -73,7 +76,30 @@ public partial class MainWindow : Window
         }
         finally
         {
-            _refreshing = false;
+            _refreshingTasks = false;
+        }
+    }
+
+    private async Task RefreshMetadataAsync()
+    {
+        if (_refreshingMetadata) return;
+        _refreshingMetadata = true;
+        try
+        {
+            var modelsTask = _codex.RequestAsync("model/list", new { limit = 100, includeHidden = false });
+            var configTask = _codex.RequestAsync("config/read", new { includeLayers = false });
+            var usageTask = _codex.RequestAsync("account/rateLimits/read", new { });
+            await Task.WhenAll(modelsTask, configTask, usageTask);
+            ApplyModels(modelsTask.Result, configTask.Result);
+            RenderUsage(ExtractWeek(usageTask.Result));
+        }
+        catch (Exception error)
+        {
+            Title = $"Codex Float — {error.Message}";
+        }
+        finally
+        {
+            _refreshingMetadata = false;
         }
     }
 
@@ -336,7 +362,8 @@ public partial class MainWindow : Window
     private void Exit_Click(object sender, RoutedEventArgs e) => Close();
     private async void Window_Closed(object? sender, EventArgs e)
     {
-        _timer.Stop();
+        _taskTimer.Stop();
+        _metadataTimer.Stop();
         await _codex.DisposeAsync();
     }
 
