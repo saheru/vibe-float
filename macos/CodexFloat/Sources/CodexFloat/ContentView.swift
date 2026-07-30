@@ -3,16 +3,34 @@ import SwiftUI
 
 struct ContentView: View {
     @EnvironmentObject private var codex: CodexService
+    @EnvironmentObject private var modules: ModuleSettings
+
+    private var visibleModules: [DashboardModule] { modules.ordered }
+    private var columnCount: Int {
+        let count = max(1, visibleModules.count)
+        return count <= 5 ? count : Int(ceil(Double(count) / 2))
+    }
+    private var rowCount: Int {
+        Int(ceil(Double(max(1, visibleModules.count)) / Double(columnCount)))
+    }
+    private var dashboardSize: CGSize {
+        CGSize(
+            width: CGFloat(columnCount * 108 + max(0, columnCount - 1) * 10 + 60),
+            height: CGFloat(rowCount * 120 + max(0, rowCount - 1) * 10 + 60)
+        )
+    }
 
     var body: some View {
         GeometryReader { geometry in
-            // 留出安全边距，避免无标题栏窗口在缩小时裁掉最右侧用量卡片。
-            let scale = min(geometry.size.width / 800, geometry.size.height / 220)
+            let scale = min(
+                geometry.size.width / dashboardSize.width,
+                geometry.size.height / dashboardSize.height
+            )
             ZStack(alignment: .bottomTrailing) {
-                panel
-                    .frame(width: 650, height: 180)
+                panel(columns: columnCount)
+                    .frame(width: dashboardSize.width, height: dashboardSize.height)
                     .scaleEffect(scale)
-                    .frame(width: 650 * scale, height: 180 * scale)
+                    .frame(width: dashboardSize.width * scale, height: dashboardSize.height * scale)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
 
                 ResizeHandle()
@@ -21,28 +39,24 @@ struct ContentView: View {
                     .help("拖动这里调整大小")
             }
         }
-        .frame(minWidth: 390, idealWidth: 520, minHeight: 108, idealHeight: 144)
-        .background(WindowConfigurator())
+        .frame(
+            minWidth: 260,
+            idealWidth: dashboardSize.width,
+            minHeight: 150,
+            idealHeight: dashboardSize.height
+        )
+        .background(WindowConfigurator(idealSize: dashboardSize, moduleCount: visibleModules.count))
         .onAppear { codex.start() }
     }
 
-    private var panel: some View {
-        HStack(spacing: 10) {
-            ForEach(0..<3, id: \.self) { index in
-                if index < codex.tasks.count {
-                    TaskTile(task: codex.tasks[index], index: index) {
-                        codex.openTask(codex.tasks[index])
-                    }
-                } else {
-                    EmptyTaskTile(index: index)
-                }
+    private func panel(columns: Int) -> some View {
+        LazyVGrid(
+            columns: Array(repeating: GridItem(.fixed(108), spacing: 10), count: columns),
+            spacing: 10
+        ) {
+            ForEach(visibleModules) { module in
+                moduleView(module)
             }
-
-            EffortTile(effort: codex.solEffort, connected: codex.connected) {
-                codex.cycleSolEffort()
-            }
-
-            UsageTile(usage: codex.weeklyUsage, connected: codex.connected)
         }
         .padding(10)
         .background(
@@ -58,13 +72,62 @@ struct ContentView: View {
         .contextMenu {
             Button("立即刷新") { codex.refresh() }
             Divider()
-            Button("退出 Codex Float") { NSApplication.shared.terminate(nil) }
+            Button("退出 Vibe Float") { NSApplication.shared.terminate(nil) }
         }
+    }
+
+    @ViewBuilder
+    private func moduleView(_ module: DashboardModule) -> some View {
+        switch module {
+        case .task1, .task2, .task3:
+            let index = module == .task1 ? 0 : module == .task2 ? 1 : 2
+            if index < codex.tasks.count {
+                TaskTile(task: codex.tasks[index], index: index) {
+                    codex.openTask(codex.tasks[index])
+                }
+            } else {
+                EmptyTaskTile(index: index)
+            }
+        case .codexEffort:
+            EffortTile(effort: codex.solEffort, connected: codex.connected) {
+                codex.cycleSolEffort()
+            }
+        case .codexUsage:
+            UsageTile(provider: "CX", usage: codex.weeklyUsage, connected: codex.connected)
+        case .claudeModel:
+            ValueControlTile(
+                provider: "CL",
+                title: "MODEL",
+                value: shortClaudeModel(codex.claudeModel),
+                color: Color(red: 0.95, green: 0.55, blue: 0.32)
+            ) {
+                codex.cycleClaudeModel()
+            }
+        case .claudeEffort:
+            ValueControlTile(
+                provider: "CL",
+                title: "EFFORT",
+                value: codex.claudeEffort.uppercased(),
+                color: .effort(codex.claudeEffort)
+            ) {
+                codex.cycleClaudeEffort()
+            }
+        case .claudeUsage:
+            UsageTile(provider: "CL", usage: codex.claudeWeeklyUsage, connected: true)
+        }
+    }
+
+    private func shortClaudeModel(_ model: String) -> String {
+        let lower = model.lowercased()
+        for name in ["fable", "opus", "sonnet", "haiku"] where lower.contains(name) {
+            return name.uppercased()
+        }
+        return String(model.prefix(8)).uppercased()
     }
 }
 
 private struct TaskTile: View {
-    let task: CodexTask
+    let task: VibeTask
     let index: Int
     let action: () -> Void
     @State private var hovering = false
@@ -87,6 +150,12 @@ private struct TaskTile: View {
                     Text("#\(index + 1)")
                         .font(.system(size: 9, weight: .bold, design: .rounded))
                         .foregroundStyle(task.state.color.opacity(0.8))
+                        .padding(8)
+                }
+                .overlay(alignment: .topLeading) {
+                    Text(task.provider.badge)
+                        .font(.system(size: 9, weight: .black, design: .rounded))
+                        .foregroundStyle(task.provider == .claude ? Color.orange : Color.blue)
                         .padding(8)
                 }
             }
@@ -167,6 +236,7 @@ private struct EffortTile: View {
 }
 
 private struct UsageTile: View {
+    let provider: String
     let usage: UsageWindow?
     let connected: Bool
 
@@ -178,7 +248,7 @@ private struct UsageTile: View {
     var body: some View {
         TileShell(accent: color, hovering: false) {
             VStack(spacing: 5) {
-                Text("周")
+                Text("\(provider) · 周")
                     .font(.system(size: 15, weight: .black, design: .rounded))
                     .foregroundStyle(.white.opacity(0.85))
                 ZStack {
@@ -196,6 +266,43 @@ private struct UsageTile: View {
                 .frame(width: 72, height: 72)
             }
         }
+    }
+}
+
+private struct ValueControlTile: View {
+    let provider: String
+    let title: String
+    let value: String
+    let color: Color
+    let action: () -> Void
+    @State private var hovering = false
+
+    var body: some View {
+        Button(action: action) {
+            TileShell(accent: color, hovering: hovering) {
+                VStack(spacing: 10) {
+                    Text("\(provider) · \(title)")
+                        .font(.system(size: 11, weight: .black, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.85))
+                    Text(value)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.62)
+                        .font(.system(size: 18, weight: .black, design: .rounded))
+                        .foregroundStyle(color)
+                        .padding(.horizontal, 9)
+                        .frame(height: 36)
+                        .frame(maxWidth: .infinity)
+                        .background(color.opacity(0.16), in: Capsule())
+                        .overlay(Capsule().stroke(color.opacity(0.9), lineWidth: 1.5))
+                    Text("点击切换")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.horizontal, 8)
+            }
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
     }
 }
 
@@ -233,17 +340,27 @@ private struct TileShell<Content: View>: View {
 }
 
 private struct WindowConfigurator: NSViewRepresentable {
+    let idealSize: CGSize
+    let moduleCount: Int
+
+    final class Coordinator {
+        var configured = false
+        var lastModuleCount = 0
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
     func makeNSView(context: Context) -> NSView {
         let view = NSView()
-        DispatchQueue.main.async { configure(view.window) }
+        DispatchQueue.main.async { configure(view.window, coordinator: context.coordinator) }
         return view
     }
 
     func updateNSView(_ nsView: NSView, context: Context) {
-        DispatchQueue.main.async { configure(nsView.window) }
+        DispatchQueue.main.async { configure(nsView.window, coordinator: context.coordinator) }
     }
 
-    private func configure(_ window: NSWindow?) {
+    private func configure(_ window: NSWindow?, coordinator: Coordinator) {
         guard let window else { return }
         window.level = .floating
         window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
@@ -258,6 +375,20 @@ private struct WindowConfigurator: NSViewRepresentable {
         window.backgroundColor = .clear
         window.isOpaque = false
         window.hasShadow = false
+        if !coordinator.configured || coordinator.lastModuleCount != moduleCount {
+            let oldTop = window.frame.maxY
+            let size = NSSize(
+                width: max(260, min(760, idealSize.width)),
+                height: max(150, min(520, idealSize.height))
+            )
+            window.setFrame(
+                NSRect(x: window.frame.minX, y: oldTop - size.height, width: size.width, height: size.height),
+                display: true,
+                animate: coordinator.configured
+            )
+            coordinator.configured = true
+            coordinator.lastModuleCount = moduleCount
+        }
     }
 }
 

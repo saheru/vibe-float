@@ -4,7 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
-        Title="Codex Float"
+        Title="Vibe Float"
         Width="800" Height="220" MinWidth="560" MinHeight="165"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         Topmost="True" ShowInTaskbar="True" ResizeMode="NoResize"
@@ -53,84 +53,115 @@
     <Border.ContextMenu>
       <ContextMenu>
         <MenuItem Header="立即刷新" Click="Refresh_Click"/>
+        <MenuItem Header="显示模块">
+          <MenuItem x:Name="ModuleTask1" Header="最近任务 1" Tag="task1" IsCheckable="True" Click="ModuleToggle_Click"/>
+          <MenuItem x:Name="ModuleTask2" Header="最近任务 2" Tag="task2" IsCheckable="True" Click="ModuleToggle_Click"/>
+          <MenuItem x:Name="ModuleTask3" Header="最近任务 3" Tag="task3" IsCheckable="True" Click="ModuleToggle_Click"/>
+          <Separator/>
+          <MenuItem x:Name="ModuleCodexEffort" Header="Codex · Sol Effort" Tag="codexEffort" IsCheckable="True" Click="ModuleToggle_Click"/>
+          <MenuItem x:Name="ModuleCodexUsage" Header="Codex · 周 Usage" Tag="codexUsage" IsCheckable="True" Click="ModuleToggle_Click"/>
+          <Separator/>
+          <MenuItem x:Name="ModuleClaudeModel" Header="Claude · Model" Tag="claudeModel" IsCheckable="True" Click="ModuleToggle_Click"/>
+          <MenuItem x:Name="ModuleClaudeEffort" Header="Claude · Effort" Tag="claudeEffort" IsCheckable="True" Click="ModuleToggle_Click"/>
+          <MenuItem x:Name="ModuleClaudeUsage" Header="Claude · 周 Usage" Tag="claudeUsage" IsCheckable="True" Click="ModuleToggle_Click"/>
+        </MenuItem>
+        <MenuItem Header="启用 Claude Usage 采集" Click="EnableClaudeUsage_Click"/>
         <Separator/>
-        <MenuItem Header="退出 Codex Float" Click="Exit_Click"/>
+        <MenuItem Header="退出 Vibe Float" Click="Exit_Click"/>
       </ContextMenu>
     </Border.ContextMenu>
 
     <Grid>
-      <Grid.ColumnDefinitions>
-        <ColumnDefinition Width="*"/>
-        <ColumnDefinition Width="*"/>
-        <ColumnDefinition Width="*"/>
-        <ColumnDefinition Width="*"/>
-        <ColumnDefinition Width="*"/>
-      </Grid.ColumnDefinitions>
+      <UniformGrid x:Name="ModuleGrid" Rows="1" Columns="5">
+        <Button x:Name="TaskButton0" Tag="0" Style="{StaticResource TileButton}" Click="Task_Click">
+          <StackPanel>
+            <Border x:Name="TaskIconRing0" Width="58" Height="58" CornerRadius="29" BorderThickness="4">
+              <TextBlock x:Name="TaskIcon0" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="30" FontWeight="Black"/>
+            </Border>
+            <TextBlock x:Name="TaskStatus0" Margin="0,8,0,0" TextAlignment="Center" FontSize="20" FontWeight="Black"/>
+            <TextBlock x:Name="TaskProject0" Margin="0,5,0,0" TextAlignment="Center" FontSize="15" FontWeight="Black"/>
+          </StackPanel>
+        </Button>
 
-      <Button x:Name="TaskButton0" Grid.Column="0" Tag="0" Style="{StaticResource TileButton}" Click="Task_Click">
-        <StackPanel>
-          <Border x:Name="TaskIconRing0" Width="58" Height="58" CornerRadius="29" BorderThickness="4">
-            <TextBlock x:Name="TaskIcon0" HorizontalAlignment="Center" VerticalAlignment="Center"
-                       FontSize="30" FontWeight="Black"/>
-          </Border>
-          <TextBlock x:Name="TaskStatus0" Margin="0,8,0,0" TextAlignment="Center" FontSize="20" FontWeight="Black"/>
-          <TextBlock x:Name="TaskProject0" Margin="0,5,0,0" TextAlignment="Center" FontSize="17" FontWeight="Black"/>
-        </StackPanel>
-      </Button>
+        <Button x:Name="TaskButton1" Tag="1" Style="{StaticResource TileButton}" Click="Task_Click">
+          <StackPanel>
+            <Border x:Name="TaskIconRing1" Width="58" Height="58" CornerRadius="29" BorderThickness="4">
+              <TextBlock x:Name="TaskIcon1" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="30" FontWeight="Black"/>
+            </Border>
+            <TextBlock x:Name="TaskStatus1" Margin="0,8,0,0" TextAlignment="Center" FontSize="20" FontWeight="Black"/>
+            <TextBlock x:Name="TaskProject1" Margin="0,5,0,0" TextAlignment="Center" FontSize="15" FontWeight="Black"/>
+          </StackPanel>
+        </Button>
 
-      <Button x:Name="TaskButton1" Grid.Column="1" Tag="1" Style="{StaticResource TileButton}" Click="Task_Click">
-        <StackPanel>
-          <Border x:Name="TaskIconRing1" Width="58" Height="58" CornerRadius="29" BorderThickness="4">
-            <TextBlock x:Name="TaskIcon1" HorizontalAlignment="Center" VerticalAlignment="Center"
-                       FontSize="30" FontWeight="Black"/>
-          </Border>
-          <TextBlock x:Name="TaskStatus1" Margin="0,8,0,0" TextAlignment="Center" FontSize="20" FontWeight="Black"/>
-          <TextBlock x:Name="TaskProject1" Margin="0,5,0,0" TextAlignment="Center" FontSize="17" FontWeight="Black"/>
-        </StackPanel>
-      </Button>
+        <Button x:Name="TaskButton2" Tag="2" Style="{StaticResource TileButton}" Click="Task_Click">
+          <StackPanel>
+            <Border x:Name="TaskIconRing2" Width="58" Height="58" CornerRadius="29" BorderThickness="4">
+              <TextBlock x:Name="TaskIcon2" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="30" FontWeight="Black"/>
+            </Border>
+            <TextBlock x:Name="TaskStatus2" Margin="0,8,0,0" TextAlignment="Center" FontSize="20" FontWeight="Black"/>
+            <TextBlock x:Name="TaskProject2" Margin="0,5,0,0" TextAlignment="Center" FontSize="15" FontWeight="Black"/>
+          </StackPanel>
+        </Button>
 
-      <Button x:Name="TaskButton2" Grid.Column="2" Tag="2" Style="{StaticResource TileButton}" Click="Task_Click">
-        <StackPanel>
-          <Border x:Name="TaskIconRing2" Width="58" Height="58" CornerRadius="29" BorderThickness="4">
-            <TextBlock x:Name="TaskIcon2" HorizontalAlignment="Center" VerticalAlignment="Center"
-                       FontSize="30" FontWeight="Black"/>
-          </Border>
-          <TextBlock x:Name="TaskStatus2" Margin="0,8,0,0" TextAlignment="Center" FontSize="20" FontWeight="Black"/>
-          <TextBlock x:Name="TaskProject2" Margin="0,5,0,0" TextAlignment="Center" FontSize="17" FontWeight="Black"/>
-        </StackPanel>
-      </Button>
+        <Button x:Name="EffortButton" Style="{StaticResource TileButton}" Click="Effort_Click">
+          <StackPanel>
+            <TextBlock Text="CX · SOL" TextAlignment="Center" FontSize="22" FontWeight="Black"/>
+            <Border x:Name="EffortPill" Margin="0,18,0,0" Padding="12,6" CornerRadius="18" BorderThickness="2">
+              <TextBlock x:Name="EffortText" Text="MEDIUM" TextAlignment="Center" FontSize="18" FontWeight="Black"/>
+            </Border>
+            <TextBlock Text="点击切换" Margin="0,13,0,0" Foreground="#78869B" TextAlignment="Center" FontSize="11"/>
+          </StackPanel>
+        </Button>
 
-      <Button x:Name="EffortButton" Grid.Column="3" Style="{StaticResource TileButton}" Click="Effort_Click">
-        <StackPanel>
-          <TextBlock Text="SOL" TextAlignment="Center" FontSize="31" FontWeight="Black"/>
-          <Border x:Name="EffortPill" Margin="0,18,0,0" Padding="12,6" CornerRadius="18" BorderThickness="2">
-            <TextBlock x:Name="EffortText" Text="MEDIUM" TextAlignment="Center" FontSize="18" FontWeight="Black"/>
-          </Border>
-          <TextBlock Text="点击切换" Margin="0,13,0,0" Foreground="#78869B" TextAlignment="Center" FontSize="11"/>
-        </StackPanel>
-      </Button>
+        <Button x:Name="CodexUsageButton" Style="{StaticResource TileButton}" IsHitTestVisible="False">
+          <StackPanel>
+            <TextBlock Text="CX · 周" TextAlignment="Center" FontSize="17" FontWeight="Black"/>
+            <Grid Width="96" Height="96" Margin="0,3,0,0">
+              <Ellipse Stroke="#FF243149" StrokeThickness="11"/>
+              <Path x:Name="CodexUsageArc" Stroke="#FF53D68A" StrokeThickness="11" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
+              <TextBlock x:Name="CodexUsageText" Text="N/A" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="23" FontWeight="Black"/>
+            </Grid>
+          </StackPanel>
+        </Button>
 
-      <Button Grid.Column="4" Style="{StaticResource TileButton}" IsHitTestVisible="False">
-        <StackPanel>
-          <TextBlock Text="周" TextAlignment="Center" FontSize="17" FontWeight="Black"/>
-          <Grid Width="96" Height="96" Margin="0,3,0,0">
-            <Ellipse Stroke="#FF243149" StrokeThickness="11"/>
-            <Path x:Name="UsageArc" Stroke="#FF53D68A" StrokeThickness="11"
-                  StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
-            <TextBlock x:Name="UsageText" Text="N/A" HorizontalAlignment="Center" VerticalAlignment="Center"
-                       FontSize="23" FontWeight="Black"/>
-          </Grid>
-        </StackPanel>
-      </Button>
+        <Button x:Name="ClaudeModelButton" Style="{StaticResource TileButton}" Click="ClaudeModel_Click">
+          <StackPanel>
+            <TextBlock Text="CL · MODEL" TextAlignment="Center" FontSize="18" FontWeight="Black"/>
+            <Border x:Name="ClaudeModelPill" Margin="0,18,0,0" Padding="10,7" CornerRadius="18" BorderThickness="2" BorderBrush="#FFF08C51" Background="#20F08C51">
+              <TextBlock x:Name="ClaudeModelText" Text="SONNET" TextAlignment="Center" FontSize="17" FontWeight="Black" Foreground="#FFF08C51"/>
+            </Border>
+            <TextBlock Text="点击切换" Margin="0,13,0,0" Foreground="#78869B" TextAlignment="Center" FontSize="11"/>
+          </StackPanel>
+        </Button>
 
-      <Thumb x:Name="ResizeThumb" Grid.Column="4" Width="28" Height="28"
-             HorizontalAlignment="Right" VerticalAlignment="Bottom"
+        <Button x:Name="ClaudeEffortButton" Style="{StaticResource TileButton}" Click="ClaudeEffort_Click">
+          <StackPanel>
+            <TextBlock Text="CL · EFFORT" TextAlignment="Center" FontSize="18" FontWeight="Black"/>
+            <Border x:Name="ClaudeEffortPill" Margin="0,18,0,0" Padding="10,7" CornerRadius="18" BorderThickness="2">
+              <TextBlock x:Name="ClaudeEffortText" Text="HIGH" TextAlignment="Center" FontSize="17" FontWeight="Black"/>
+            </Border>
+            <TextBlock Text="点击切换" Margin="0,13,0,0" Foreground="#78869B" TextAlignment="Center" FontSize="11"/>
+          </StackPanel>
+        </Button>
+
+        <Button x:Name="ClaudeUsageButton" Style="{StaticResource TileButton}" IsHitTestVisible="False">
+          <StackPanel>
+            <TextBlock Text="CL · 周" TextAlignment="Center" FontSize="17" FontWeight="Black"/>
+            <Grid Width="96" Height="96" Margin="0,3,0,0">
+              <Ellipse Stroke="#FF243149" StrokeThickness="11"/>
+              <Path x:Name="ClaudeUsageArc" Stroke="#FFF08C51" StrokeThickness="11" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
+              <TextBlock x:Name="ClaudeUsageText" Text="N/A" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="23" FontWeight="Black"/>
+            </Grid>
+          </StackPanel>
+        </Button>
+      </UniformGrid>
+
+      <Thumb x:Name="ResizeThumb" Width="28" Height="28" HorizontalAlignment="Right" VerticalAlignment="Bottom"
              Cursor="SizeNWSE" DragDelta="ResizeThumb_DragDelta">
         <Thumb.Template>
           <ControlTemplate TargetType="Thumb">
             <Border Background="#AA000000" CornerRadius="8">
-              <TextBlock Text="◢" Foreground="White" FontSize="17"
-                         HorizontalAlignment="Center" VerticalAlignment="Center"/>
+              <TextBlock Text="◢" Foreground="White" FontSize="17" HorizontalAlignment="Center" VerticalAlignment="Center"/>
             </Border>
           </ControlTemplate>
         </Thumb.Template>

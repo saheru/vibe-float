@@ -1,6 +1,25 @@
 import Foundation
 import SwiftUI
 
+enum TaskProvider: String {
+    case codex
+    case claude
+
+    var badge: String {
+        switch self {
+        case .codex: "CX"
+        case .claude: "CL"
+        }
+    }
+
+    var displayName: String {
+        switch self {
+        case .codex: "Codex"
+        case .claude: "Claude"
+        }
+    }
+}
+
 enum TaskState: String {
     case active
     case idle
@@ -39,15 +58,17 @@ enum TaskState: String {
     }
 }
 
-struct CodexTask: Identifiable {
+struct VibeTask: Identifiable {
     let id: String
     let title: String
     let cwd: String
     let state: TaskState
+    let provider: TaskProvider
+    let updatedAt: Date
 
     var projectCode: String {
         let name = URL(fileURLWithPath: cwd).lastPathComponent
-        guard !name.isEmpty else { return "CODEX" }
+        guard !name.isEmpty else { return provider.badge }
         return String(name.prefix(4)).uppercased()
     }
 }

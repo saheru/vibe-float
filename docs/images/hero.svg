@@ -33,8 +33,8 @@
       <rect x="13" y="14" width="12" height="44" rx="6" fill="#35a7ff"/>
       <rect x="30" y="22" width="12" height="36" rx="6" fill="#53d68a"/>
       <rect x="47" y="8" width="12" height="50" rx="6" fill="#b77cff"/>
-      <text x="96" y="37" fill="#fff" font-size="38" font-weight="800">Codex Float</text>
-      <text x="97" y="68" fill="#91a0b8" font-size="18" font-weight="600">最近任务、Sol 强度与周用量，一眼掌握</text>
+      <text x="96" y="37" fill="#fff" font-size="38" font-weight="800">Vibe Float</text>
+      <text x="97" y="68" fill="#91a0b8" font-size="18" font-weight="600">Codex + Claude 模块，自由组合</text>
     </g>
 
     <g transform="translate(106 300)" filter="url(#shadow)">
@@ -48,7 +48,7 @@
         <path d="M98 55l31 21-31 21z" fill="#35a7ff"/>
         <text x="109" y="145" fill="#fff" text-anchor="middle" font-size="30" font-weight="900">执行中</text>
         <text x="109" y="184" fill="#35a7ff" text-anchor="middle" font-size="25" font-weight="900" letter-spacing="3">CODE</text>
-        <text x="194" y="28" fill="#35a7ff" text-anchor="end" font-size="14" font-weight="800">#1</text>
+        <text x="194" y="28" fill="#35a7ff" text-anchor="end" font-size="14" font-weight="800">CX · #1</text>
       </g>
 
       <!-- Task 2 -->
@@ -59,7 +59,7 @@
         <text x="109" y="91" fill="#ffbd45" text-anchor="middle" font-size="47" font-weight="900">?</text>
         <text x="109" y="145" fill="#fff" text-anchor="middle" font-size="30" font-weight="900">待回复</text>
         <text x="109" y="184" fill="#ffbd45" text-anchor="middle" font-size="25" font-weight="900" letter-spacing="3">DEMO</text>
-        <text x="194" y="28" fill="#ffbd45" text-anchor="end" font-size="14" font-weight="800">#2</text>
+        <text x="194" y="28" fill="#ffbd45" text-anchor="end" font-size="14" font-weight="800">CL · #2</text>
       </g>
 
       <!-- Task 3 -->
@@ -70,14 +70,14 @@
         <path d="M88 77l15 15 30-35" fill="none" stroke="#53d68a" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
         <text x="109" y="145" fill="#fff" text-anchor="middle" font-size="30" font-weight="900">完成</text>
         <text x="109" y="184" fill="#53d68a" text-anchor="middle" font-size="25" font-weight="900" letter-spacing="3">SHIP</text>
-        <text x="194" y="28" fill="#53d68a" text-anchor="end" font-size="14" font-weight="800">#3</text>
+        <text x="194" y="28" fill="#53d68a" text-anchor="end" font-size="14" font-weight="800">CX · #3</text>
       </g>
 
       <!-- Sol -->
       <g transform="translate(736 25)">
         <rect width="218" height="210" rx="30" fill="url(#card)" stroke="#ffbd45" stroke-width="3"/>
         <path d="M24 12h170" stroke="#ffbd45" stroke-width="3" opacity=".8"/>
-        <text x="109" y="77" fill="#fff" text-anchor="middle" font-size="43" font-weight="950">SOL</text>
+        <text x="109" y="77" fill="#fff" text-anchor="middle" font-size="43" font-weight="950">CX · SOL</text>
         <rect x="42" y="100" width="134" height="56" rx="28" fill="#ffbd45" opacity=".14" stroke="#ffbd45" stroke-width="3"/>
         <text x="109" y="138" fill="#ffbd45" text-anchor="middle" font-size="27" font-weight="950">HIGH</text>
         <text x="109" y="186" fill="#77869d" text-anchor="middle" font-size="14" font-weight="700">点击切换</text>
@@ -87,7 +87,7 @@
       <g transform="translate(972 25)">
         <rect width="228" height="210" rx="30" fill="url(#card)" stroke="#53d68a" stroke-width="3"/>
         <path d="M24 12h180" stroke="#53d68a" stroke-width="3" opacity=".8"/>
-        <text x="114" y="39" fill="#d8e0ed" text-anchor="middle" font-size="22" font-weight="900">周</text>
+        <text x="114" y="39" fill="#d8e0ed" text-anchor="middle" font-size="22" font-weight="900">CX · 周</text>
         <circle cx="114" cy="117" r="62" fill="none" stroke="#243149" stroke-width="17"/>
         <circle cx="114" cy="117" r="62" fill="none" stroke="#53d68a" stroke-width="17" stroke-linecap="round"
           stroke-dasharray="171 390" transform="rotate(-90 114 117)" filter="url(#glow)"/>
@@ -96,7 +96,7 @@
     </g>
 
     <text x="720" y="645" fill="#a8b5c9" text-anchor="middle" font-size="18" font-weight="600">
-      macOS SwiftUI · Windows WPF · StreamDock Control
+      Codex + Claude Code · macOS · Windows · StreamDock
     </text>
   </g>
 </svg>

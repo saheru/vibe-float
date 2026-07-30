@@ -3,12 +3,18 @@ import Foundation
 
 @MainActor
 final class CodexService: ObservableObject {
-    @Published var tasks: [CodexTask] = []
+    @Published var tasks: [VibeTask] = []
     @Published var solEffort = "medium"
     @Published var weeklyUsage: UsageWindow?
+    @Published var claudeModel = "sonnet"
+    @Published var claudeEffort = "high"
+    @Published var claudeFiveHourUsage: UsageWindow?
+    @Published var claudeWeeklyUsage: UsageWindow?
     @Published var connected = false
     @Published var lastError: String?
 
+    private var codexTasks: [VibeTask] = []
+    private var claudeTasks: [VibeTask] = []
     private var process: Process?
     private var stdin: FileHandle?
     private var readBuffer = Data()
@@ -19,13 +25,16 @@ final class CodexService: ObservableObject {
     private var taskTimer: Timer?
     private var usageTimer: Timer?
     private var staticTimer: Timer?
+    private var claudeTimer: Timer?
     private var eventRefreshTimer: Timer?
     private var isRefreshingTasks = false
     private var isRefreshingUsage = false
     private var isRefreshingStatic = false
     private var stateCache: [String: (signature: String, state: TaskState)] = [:]
+    private var isRefreshingClaude = false
 
     func start() {
+        startClaudeMonitoring()
         guard process == nil else { return }
         do {
             let task = Process()
@@ -52,9 +61,9 @@ final class CodexService: ObservableObject {
             stdin = input.fileHandleForWriting
             request("initialize", params: [
                 "clientInfo": [
-                    "name": "codex_float",
-                    "title": "Codex Float",
-                    "version": "0.2.5"
+                    "name": "vibe_float",
+                    "title": "Vibe Float",
+                    "version": "0.3.0"
                 ],
                 "capabilities": ["experimentalApi": true]
             ]) { [weak self] result in
@@ -85,20 +94,32 @@ final class CodexService: ObservableObject {
         taskTimer?.invalidate()
         usageTimer?.invalidate()
         staticTimer?.invalidate()
+        claudeTimer?.invalidate()
         eventRefreshTimer?.invalidate()
         taskTimer = nil
         usageTimer = nil
         staticTimer = nil
+        claudeTimer = nil
         eventRefreshTimer = nil
         process?.terminate()
         process = nil
         connected = false
     }
 
-    func openTask(_ task: CodexTask) {
-        guard let encoded = task.id.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed),
-              let url = URL(string: "codex://threads/\(encoded)") else { return }
-        NSWorkspace.shared.open(url)
+    func openTask(_ task: VibeTask) {
+        switch task.provider {
+        case .codex:
+            guard let encoded = task.id.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed),
+                  let url = URL(string: "codex://threads/\(encoded)") else { return }
+            NSWorkspace.shared.open(url)
+        case .claude:
+            let cwd = task.cwd.isEmpty ? FileManager.default.homeDirectoryForCurrentUser.path : task.cwd
+            let command = "cd \(shellQuote(cwd)) && claude --resume \(shellQuote(task.id))"
+            let escaped = command
+                .replacingOccurrences(of: "\\", with: "\\\\")
+                .replacingOccurrences(of: "\"", with: "\\\"")
+            NSAppleScript(source: "tell application \"Terminal\" to do script \"\(escaped)\"")?.executeAndReturnError(nil)
+        }
     }
 
     func cycleSolEffort(_ direction: Int = 1) {
@@ -130,6 +151,48 @@ final class CodexService: ObservableObject {
         refreshTasks()
         refreshUsage()
         refreshStatic()
+        refreshClaude()
+    }
+
+    func cycleClaudeModel(_ direction: Int = 1) {
+        let choices = ([claudeModel] + ClaudeSettings.models).reduce(into: [String]()) {
+            if !$0.contains($1) { $0.append($1) }
+        }
+        let current = choices.firstIndex(of: claudeModel) ?? 0
+        let next = choices[(current + (direction >= 0 ? 1 : -1) + choices.count) % choices.count]
+        do {
+            try ClaudeSettings.write(key: "model", value: next)
+            claudeModel = next
+        } catch {
+            lastError = error.localizedDescription
+        }
+    }
+
+    func cycleClaudeEffort(_ direction: Int = 1) {
+        let choices = ClaudeSettings.efforts
+        let current = choices.firstIndex(of: claudeEffort) ?? 0
+        let next = choices[(current + (direction >= 0 ? 1 : -1) + choices.count) % choices.count]
+        do {
+            try ClaudeSettings.write(key: "effortLevel", value: next)
+            claudeEffort = next
+        } catch {
+            lastError = error.localizedDescription
+        }
+    }
+
+    func installClaudeUsageCapture() {
+        let helper = Bundle.main.bundleURL
+            .appendingPathComponent("Contents/Helpers/VibeFloatStatus").path
+        guard FileManager.default.isExecutableFile(atPath: helper) else {
+            lastError = "找不到 Claude Usage 采集组件"
+            return
+        }
+        do {
+            try ClaudeSettings.installUsageCapture(helperPath: helper)
+            refreshClaude()
+        } catch {
+            lastError = error.localizedDescription
+        }
     }
 
     func refreshTasks() {
@@ -222,20 +285,62 @@ final class CodexService: ObservableObject {
 
     private func applyThreads(_ result: [String: Any]?) {
         let raw = result?["data"] as? [[String: Any]] ?? []
-        tasks = raw
+        codexTasks = raw
             .filter { $0["parentThreadId"] == nil || $0["parentThreadId"] is NSNull }
-            .prefix(3)
+            .prefix(16)
             .compactMap { item in
                 guard let id = item["id"] as? String else { return nil }
                 let title = item["name"] as? String ?? item["preview"] as? String ?? "未命名任务"
                 let cwd = item["cwd"] as? String ?? ""
-                return CodexTask(
+                return VibeTask(
                     id: id,
                     title: title,
                     cwd: cwd,
-                    state: inferState(item)
+                    state: inferState(item),
+                    provider: .codex,
+                    updatedAt: Date(timeIntervalSince1970: Self.number(item["updatedAt"]) ?? 0)
                 )
             }
+        mergeTasks()
+    }
+
+    private func startClaudeMonitoring() {
+        guard claudeTimer == nil else { return }
+        refreshClaude()
+        claudeTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+            Task { @MainActor in self?.refreshClaude() }
+        }
+    }
+
+    private func refreshClaude() {
+        guard !isRefreshingClaude else { return }
+        isRefreshingClaude = true
+        DispatchQueue.global(qos: .utility).async {
+            let sessions = ClaudeSessionScanner.scan(limit: 8)
+            let configuration = ClaudeSettings.read()
+            let usage = ClaudeSettings.readUsage()
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.claudeTasks = sessions
+                self.claudeModel = configuration.model
+                self.claudeEffort = configuration.effort
+                self.claudeFiveHourUsage = usage.fiveHour
+                self.claudeWeeklyUsage = usage.sevenDay
+                self.isRefreshingClaude = false
+                self.mergeTasks()
+            }
+        }
+    }
+
+    private func mergeTasks() {
+        tasks = (codexTasks + claudeTasks)
+            .sorted { $0.updatedAt > $1.updatedAt }
+            .prefix(3)
+            .map { $0 }
+    }
+
+    private func shellQuote(_ value: String) -> String {
+        "'" + value.replacingOccurrences(of: "'", with: "'\\''") + "'"
     }
 
     private func inferState(_ thread: [String: Any]) -> TaskState {

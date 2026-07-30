@@ -32,16 +32,16 @@ jobs:
             -p:PublishSingleFile=true `
             -p:IncludeNativeLibrariesForSelfExtract=true `
             -o artifacts/windows-x64
-          Compress-Archive -Path artifacts/windows-x64/CodexFloat.exe `
-            -DestinationPath artifacts/Codex-Float-Windows-x64.zip
+          Compress-Archive -Path artifacts/windows-x64/VibeFloat.exe `
+            -DestinationPath artifacts/Vibe-Float-Windows-x64.zip
 
       - uses: actions/upload-artifact@v4
         with:
-          name: Codex-Float-Windows-x64
-          path: artifacts/Codex-Float-Windows-x64.zip
+          name: Vibe-Float-Windows-x64
+          path: artifacts/Vibe-Float-Windows-x64.zip
 
       - name: Upload tagged release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: artifacts/Codex-Float-Windows-x64.zip
+          files: artifacts/Vibe-Float-Windows-x64.zip

@@ -5,9 +5,9 @@
 ## 本地开发
 
 ```bash
-git clone https://github.com/saheru/codex-float.git
-cd codex-float
-./scripts/build-codex-float.sh
+git clone https://github.com/saheru/vibe-float.git
+cd vibe-float
+./scripts/build-vibe-float.sh
 ```
 
 Windows 版本需要 .NET 8 SDK：

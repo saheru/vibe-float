@@ -1,65 +1,80 @@
 <div align="center">
 
-<img src="docs/images/app-icon.png" width="128" alt="Codex Float icon">
+<img src="docs/images/app-icon.png" width="128" alt="Vibe Float icon">
 
-![Codex Float](docs/images/hero.svg)
+![Vibe Float](docs/images/hero.svg)
 
-# Codex Float & StreamDock Control
+# Vibe Float & StreamDock Control
 
-**把 Codex 最近任务、Sol 推理强度和周 Usage 放进桌面悬浮面板与 StreamDock 控制设备。**
+**把 Codex 与 Claude Code 的任务、模型、Effort 和 Usage 组合成自己的桌面悬浮控制台。**
 
-[![macOS 14+](https://img.shields.io/badge/macOS-14%2B-111827?logo=apple&logoColor=white)](https://github.com/saheru/codex-float/releases)
-[![Windows 10/11](https://img.shields.io/badge/Windows-10%20%2F%2011-0078D4?logo=windows11&logoColor=white)](https://github.com/saheru/codex-float/releases)
-[![Apple Silicon + Intel](https://img.shields.io/badge/Mac-Apple%20Silicon%20%2B%20Intel-35a7ff)](https://github.com/saheru/codex-float/releases)
+[![macOS 14+](https://img.shields.io/badge/macOS-14%2B-111827?logo=apple&logoColor=white)](https://github.com/saheru/vibe-float/releases)
+[![Windows 10/11](https://img.shields.io/badge/Windows-10%20%2F%2011-0078D4?logo=windows11&logoColor=white)](https://github.com/saheru/vibe-float/releases)
+[![Apple Silicon + Intel](https://img.shields.io/badge/Mac-Apple%20Silicon%20%2B%20Intel-35a7ff)](https://github.com/saheru/vibe-float/releases)
 [![Swift 6](https://img.shields.io/badge/Swift-6-F05138?logo=swift&logoColor=white)](macos/CodexFloat)
 [![License: MIT](https://img.shields.io/badge/license-MIT-b77cff)](LICENSE)
 
-[下载最新版](https://github.com/saheru/codex-float/releases/latest) ·
+[下载最新版](https://github.com/saheru/vibe-float/releases/latest) ·
 [StreamDock 插件](#-streamdock-control) ·
 [使用方法](#-使用方法) ·
 [开发构建](#-开发与构建) ·
-[提交问题](https://github.com/saheru/codex-float/issues)
+[提交问题](https://github.com/saheru/vibe-float/issues)
 
 </div>
 
 ---
 
-本项目提供 **macOS SwiftUI**、**Windows WPF** 悬浮工具和通用 **StreamDock Codex Control** 插件。三种客户端均通过本机 `codex app-server` 读取状态，无需浏览器扩展、云端服务或 Token 存储。
+本项目提供 **macOS SwiftUI**、**Windows WPF** 悬浮工具和通用 **StreamDock Codex Control** 插件。Vibe Float 从本机 `codex app-server` 与 Claude Code 会话文件读取状态，不需要浏览器扩展或第三方服务端。
 
 ![核心能力](docs/images/features.svg)
 
-## ✨ 五区面板
+## ✨ 可配置模块
 
-| 区域 | 显示 | 操作 |
+| 模块 | 显示 | 操作 |
 |---|---|---|
-| 最近任务 × 3 | 执行中、待回复、完成、错误与项目缩写 | 点击跳转到对应 Codex 任务 |
-| Sol 推理强度 | `minimal`～`ultra`，不同 effort 使用不同颜色 | 点击循环切换 |
-| 周 Usage | 实时百分比、阈值颜色和动态进度轮 | 每 3 秒自动刷新 |
+| 最近任务 1/2/3 | 混合排列最近的 Codex 与 Claude 任务，显示来源、状态和项目缩写 | Codex 跳转桌面任务；Claude 在终端恢复会话 |
+| Codex · Sol Effort | `minimal`～`ultra`，不同 effort 使用不同颜色 | 点击循环切换 |
+| Codex · 周 Usage | 实时百分比、阈值颜色和动态进度轮 | 自动刷新 |
+| Claude · Model | 当前 Claude Code 模型 | 点击循环切换 |
+| Claude · Effort | `low`～`max` | 点击循环切换 |
+| Claude · 周 Usage | Claude 7d 限额进度轮 | 通过本地 Status Line 采集刷新 |
 
-任务状态使用 app-server 事件触发刷新，并以 0.8 秒独立轮询兜底；不会再被 Usage 或模型请求阻塞。
+所有模块都可以单独开关。Vibe Float 会根据启用数量自动切换单行或多行网格，并同步调整窗口尺寸。
 
 ## 🖥 使用方法
 
 - 面板始终置顶，并可显示在所有桌面空间。
+- 从 macOS 菜单栏或 Windows 面板右键菜单进入“显示模块”，自由组合模块。
 - 拖动空白区域移动窗口。
 - 拖动右下角的白色缩放手柄等比调整大小。
 - 右键面板可立即刷新或退出。
-- 点击任务通过 `codex://threads/<id>` 打开 Codex Desktop。
+- Codex 任务通过 `codex://threads/<id>` 打开 Codex Desktop。
+- Claude 任务通过 `claude --resume <session-id>` 在终端恢复。
 - 点击 Sol 卡片会更新 Codex 用户配置，新建 Codex CLI 任务也会使用新的模型和 effort。
+- Claude Model 与 Effort 卡片会更新 `~/.claude/settings.json`，供新建 Claude Code 会话使用。
+
+### Claude Usage
+
+Claude Code 的限额数据由 Status Line 提供。首次使用时选择：
+
+- macOS 菜单栏：**Vibe Float → Claude → 启用 Usage 采集**
+- Windows 面板右键：**启用 Claude Usage 采集**
+
+Vibe Float 会保留并继续调用用户原有的 Status Line 命令。启用后重启 Claude Code 会话即可看到 `CL · 周` 进度轮。
 
 ## 📦 安装
 
-从 [Releases](https://github.com/saheru/codex-float/releases/latest) 下载。
+从 [Releases](https://github.com/saheru/vibe-float/releases/latest) 下载。
 
 ### macOS
 
-- `Codex-Float-macOS.dmg`：推荐，打开后拖入 Applications。
-- `Codex-Float-macOS.zip`：解压后拖入 Applications。
+- `Vibe-Float-macOS.dmg`：推荐，打开后拖入 Applications。
+- `Vibe-Float-macOS.zip`：解压后拖入 Applications。
 
-首次运行请右键 **Codex Float → 打开**。如果 macOS 仍拦截本地签名版本：
+首次运行请右键 **Vibe Float → 打开**。如果 macOS 仍拦截本地签名版本：
 
 ```bash
-xattr -dr com.apple.quarantine "/Applications/Codex Float.app"
+xattr -dr com.apple.quarantine "/Applications/Vibe Float.app"
 ```
 
 ### 运行要求
@@ -67,11 +82,12 @@ xattr -dr com.apple.quarantine "/Applications/Codex Float.app"
 - macOS 14 或更高版本。
 - 支持 Apple Silicon 与 Intel Mac。
 - 已安装并登录 Codex CLI。
+- 若启用 Claude 模块，需要安装 Claude Code。
 - 点击任务跳转需要 Codex Desktop。
 
 ### Windows
 
-下载 `Codex-Float-Windows-x64.zip`，解压后运行 `CodexFloat.exe`。
+下载 `Vibe-Float-Windows-x64.zip`，解压后运行 `VibeFloat.exe`。
 
 - Windows 10 或 Windows 11 x64。
 - 发布包为 self-contained，不需要单独安装 .NET。
@@ -82,16 +98,18 @@ xattr -dr com.apple.quarantine "/Applications/Codex Float.app"
 
 ```mermaid
 flowchart LR
-    Float["Codex Float<br/>SwiftUI"] --> AS["本机 codex app-server"]
+    Float["Vibe Float<br/>SwiftUI / WPF"] --> AS["本机 codex app-server"]
+    Float --> Claude["Claude Code 本地会话与配置"]
     AS --> Threads["最近任务与状态"]
     AS --> Limits["账户周 Usage"]
     Float --> Config["Codex 用户配置"]
     Config --> CLI["Codex CLI 新任务"]
     Threads --> Desktop["Codex Desktop 深链接"]
+    Claude --> Resume["Claude --resume"]
     Dock["StreamDock Codex Control"] --> AS
 ```
 
-Codex Float 默认按以下顺序查找 Codex：
+Vibe Float 默认按以下顺序查找 Codex：
 
 1. `$CODEX_PATH`
 2. `~/.local/share/fnm/aliases/default/bin/codex`
@@ -155,24 +173,24 @@ macOS 也可以直接运行：
 ### 构建通用 macOS 应用
 
 ```bash
-git clone https://github.com/saheru/codex-float.git
-cd codex-float
-./scripts/build-codex-float.sh
+git clone https://github.com/saheru/vibe-float.git
+cd vibe-float
+./scripts/build-vibe-float.sh
 ```
 
 构建脚本同时生成 Apple Silicon 与 Intel 架构：
 
 ```text
 dist/
-├── Codex Float.app
-├── Codex-Float-macOS.dmg
-└── Codex-Float-macOS.zip
+├── Vibe Float.app
+├── Vibe-Float-macOS.dmg
+└── Vibe-Float-macOS.zip
 ```
 
 安装本地构建：
 
 ```bash
-./scripts/install-codex-float.sh
+./scripts/install-vibe-float.sh
 ```
 
 ### 构建 Windows 应用
@@ -200,8 +218,8 @@ dotnet publish .\windows\CodexFloat\CodexFloat.csproj `
 ├── docs/images/
 ├── .github/workflows/                 # Windows 自动构建
 └── scripts/
-    ├── build-codex-float.sh
-    └── install-codex-float.sh
+    ├── build-vibe-float.sh
+    └── install-vibe-float.sh
 ```
 
 ## 🔒 隐私
@@ -209,7 +227,7 @@ dotnet publish .\windows\CodexFloat\CodexFloat.csproj `
 - 所有任务和 Usage 数据都在本机读取与渲染。
 - 不包含遥测、统计 SDK 或第三方服务端。
 - 不读取或上传 Codex 登录凭据。
-- 只启动本机 `codex app-server` 并使用结构化接口。
+- 不读取或上传 Claude 登录凭据；Claude Usage 由本机 Status Line 数据提供。
 
 ## 🤝 贡献
 

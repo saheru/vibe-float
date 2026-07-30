@@ -13,38 +13,55 @@ public partial class MainWindow : Window
 {
     private readonly CodexClient _codex = new();
     private readonly DispatcherTimer _taskTimer = new() { Interval = TimeSpan.FromMilliseconds(800) };
+    private readonly DispatcherTimer _claudeTimer = new() { Interval = TimeSpan.FromSeconds(2) };
     private readonly DispatcherTimer _metadataTimer = new() { Interval = TimeSpan.FromSeconds(3) };
-    private readonly List<TaskCard> _tasks = [];
+    private readonly List<VibeTask> _tasks = [];
+    private readonly List<VibeTask> _codexTasks = [];
+    private readonly List<VibeTask> _claudeTasks = [];
     private List<string> _solEfforts = ["low", "medium", "high", "xhigh"];
     private string? _solModel;
     private string _effort = "medium";
+    private string _claudeModel = "sonnet";
+    private string _claudeEffort = "high";
+    private bool _codexConnected;
     private bool _refreshingTasks;
     private bool _refreshingMetadata;
+    private bool _refreshingClaude;
+    private HashSet<string> _enabledModules = [];
 
     public MainWindow()
     {
         InitializeComponent();
         Loaded += async (_, _) => await StartAsync();
         _taskTimer.Tick += async (_, _) => await RefreshTasksAsync();
+        _claudeTimer.Tick += async (_, _) => await RefreshClaudeAsync();
         _metadataTimer.Tick += async (_, _) => await RefreshMetadataAsync();
+        LoadModuleSettings();
         RenderEmptyTasks();
         RenderEffort();
-        RenderUsage(null);
+        RenderUsage(null, CodexUsageText, CodexUsageArc);
+        RenderUsage(null, ClaudeUsageText, ClaudeUsageArc);
+        RenderClaudeControls();
+        ApplyModuleLayout(true);
     }
 
     private async Task StartAsync()
     {
+        _taskTimer.Start();
+        _claudeTimer.Start();
+        _metadataTimer.Start();
+        await RefreshClaudeAsync();
         try
         {
             await _codex.StartAsync();
+            _codexConnected = true;
             await RefreshAsync();
-            _taskTimer.Start();
-            _metadataTimer.Start();
         }
         catch (Exception error)
         {
-            Title = $"Codex Float — {error.Message}";
-            RenderDisconnected();
+            _codexConnected = false;
+            Title = $"Vibe Float — Codex: {error.Message}";
+            MergeTasks();
         }
     }
 
@@ -55,6 +72,7 @@ public partial class MainWindow : Window
 
     private async Task RefreshTasksAsync()
     {
+        if (!_codexConnected) return;
         if (_refreshingTasks) return;
         _refreshingTasks = true;
         try
@@ -68,11 +86,11 @@ public partial class MainWindow : Window
                 useStateDbOnly = true
             });
             ApplyThreads(result);
-            Title = "Codex Float";
+            Title = "Vibe Float";
         }
         catch (Exception error)
         {
-            Title = $"Codex Float — {error.Message}";
+            Title = $"Vibe Float — Codex: {error.Message}";
         }
         finally
         {
@@ -82,6 +100,7 @@ public partial class MainWindow : Window
 
     private async Task RefreshMetadataAsync()
     {
+        if (!_codexConnected) return;
         if (_refreshingMetadata) return;
         _refreshingMetadata = true;
         try
@@ -91,11 +110,11 @@ public partial class MainWindow : Window
             var usageTask = _codex.RequestAsync("account/rateLimits/read", new { });
             await Task.WhenAll(modelsTask, configTask, usageTask);
             ApplyModels(modelsTask.Result, configTask.Result);
-            RenderUsage(ExtractWeek(usageTask.Result));
+            RenderUsage(ExtractWeek(usageTask.Result), CodexUsageText, CodexUsageArc);
         }
         catch (Exception error)
         {
-            Title = $"Codex Float — {error.Message}";
+            Title = $"Vibe Float — Codex: {error.Message}";
         }
         finally
         {
@@ -136,7 +155,7 @@ public partial class MainWindow : Window
 
     private void ApplyThreads(JsonElement result)
     {
-        _tasks.Clear();
+        _codexTasks.Clear();
         if (result.TryGetProperty("data", out var data))
         {
             foreach (var thread in data.EnumerateArray())
@@ -147,11 +166,178 @@ public partial class MainWindow : Window
                 var cwd = String(thread, "cwd");
                 var title = String(thread, "name");
                 if (string.IsNullOrEmpty(title)) title = String(thread, "preview");
-                _tasks.Add(new TaskCard(id, title, cwd, InferState(thread)));
-                if (_tasks.Count == 3) break;
+                var updated = Number(thread, "updatedAt") is { } seconds
+                    ? DateTimeOffset.FromUnixTimeSeconds((long)seconds).UtcDateTime
+                    : DateTime.UtcNow;
+                _codexTasks.Add(new VibeTask(id, title, cwd, InferState(thread), TaskProvider.Codex, updated));
+                if (_codexTasks.Count == 16) break;
             }
         }
-        for (var index = 0; index < 3; index++) RenderTask(index, index < _tasks.Count ? _tasks[index] : null);
+        MergeTasks();
+    }
+
+    private async Task RefreshClaudeAsync()
+    {
+        if (_refreshingClaude) return;
+        _refreshingClaude = true;
+        try
+        {
+            var snapshot = await Task.Run(() => (
+                Tasks: ClaudeSupport.ScanSessions(8),
+                Config: ClaudeSupport.ReadConfiguration(),
+                Usage: ClaudeSupport.ReadUsage()
+            ));
+            _claudeTasks.Clear();
+            _claudeTasks.AddRange(snapshot.Tasks);
+            _claudeModel = snapshot.Config.Model;
+            _claudeEffort = snapshot.Config.Effort;
+            RenderClaudeControls();
+            RenderUsage(snapshot.Usage.SevenDay, ClaudeUsageText, ClaudeUsageArc);
+            MergeTasks();
+        }
+        finally
+        {
+            _refreshingClaude = false;
+        }
+    }
+
+    private void MergeTasks()
+    {
+        _tasks.Clear();
+        _tasks.AddRange(_codexTasks
+            .Concat(_claudeTasks)
+            .OrderByDescending(task => task.UpdatedAt)
+            .Take(3));
+        for (var index = 0; index < 3; index++)
+            RenderTask(index, index < _tasks.Count ? _tasks[index] : null);
+    }
+
+    private async void ClaudeModel_Click(object sender, RoutedEventArgs e)
+    {
+        var choices = new[] { _claudeModel }.Concat(ClaudeSupport.Models).Distinct().ToList();
+        var next = choices[(Math.Max(0, choices.IndexOf(_claudeModel)) + 1) % choices.Count];
+        await Task.Run(() => ClaudeSupport.WriteConfiguration("model", next));
+        _claudeModel = next;
+        RenderClaudeControls();
+    }
+
+    private async void ClaudeEffort_Click(object sender, RoutedEventArgs e)
+    {
+        var choices = ClaudeSupport.Efforts.ToList();
+        var next = choices[(Math.Max(0, choices.IndexOf(_claudeEffort)) + 1) % choices.Count];
+        await Task.Run(() => ClaudeSupport.WriteConfiguration("effortLevel", next));
+        _claudeEffort = next;
+        RenderClaudeControls();
+    }
+
+    private void RenderClaudeControls()
+    {
+        ClaudeModelText.Text = ShortClaudeModel(_claudeModel);
+        var color = _claudeEffort.ToLowerInvariant() switch
+        {
+            "low" => "#53D68A",
+            "medium" => "#35A7FF",
+            "high" => "#FFBD45",
+            "xhigh" => "#FF7A59",
+            "max" => "#FF5F6D",
+            _ => "#B77CFF"
+        };
+        ClaudeEffortText.Text = _claudeEffort.ToUpperInvariant();
+        ClaudeEffortText.Foreground = Brush(color);
+        ClaudeEffortPill.BorderBrush = Brush(color);
+        ClaudeEffortPill.Background = Brush($"20{color[1..]}");
+    }
+
+    private static string ShortClaudeModel(string model)
+    {
+        foreach (var name in new[] { "fable", "opus", "sonnet", "haiku" })
+            if (model.Contains(name, StringComparison.OrdinalIgnoreCase))
+                return name.ToUpperInvariant();
+        return new string(model.Take(8).ToArray()).ToUpperInvariant();
+    }
+
+    private async void EnableClaudeUsage_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            await Task.Run(ClaudeSupport.InstallUsageCapture);
+            MessageBox.Show(
+                "Claude Usage 采集已启用。重启正在运行的 Claude Code 会话后，5h/周限额会自动同步。",
+                "Vibe Float",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+        }
+        catch (Exception error)
+        {
+            MessageBox.Show(error.Message, "Vibe Float", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private string ModuleSettingsPath => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+        "Vibe Float", "modules.json");
+
+    private void LoadModuleSettings()
+    {
+        try
+        {
+            if (File.Exists(ModuleSettingsPath))
+                _enabledModules = JsonSerializer.Deserialize<HashSet<string>>(
+                    File.ReadAllText(ModuleSettingsPath)) ?? [];
+        }
+        catch { }
+        if (_enabledModules.Count == 0)
+            _enabledModules = [
+                "task1", "task2", "task3", "codexEffort",
+                "codexUsage", "claudeModel", "claudeEffort", "claudeUsage"
+            ];
+    }
+
+    private void SaveModuleSettings()
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(ModuleSettingsPath)!);
+        File.WriteAllText(ModuleSettingsPath, JsonSerializer.Serialize(_enabledModules));
+    }
+
+    private void ModuleToggle_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not MenuItem { Tag: string key } item) return;
+        if (item.IsChecked) _enabledModules.Add(key);
+        else if (_enabledModules.Count > 1) _enabledModules.Remove(key);
+        else item.IsChecked = true;
+        SaveModuleSettings();
+        ApplyModuleLayout(true);
+    }
+
+    private void ApplyModuleLayout(bool resize)
+    {
+        var entries = new (string Key, FrameworkElement View, MenuItem Menu)[]
+        {
+            ("task1", TaskButton0, ModuleTask1),
+            ("task2", TaskButton1, ModuleTask2),
+            ("task3", TaskButton2, ModuleTask3),
+            ("codexEffort", EffortButton, ModuleCodexEffort),
+            ("codexUsage", CodexUsageButton, ModuleCodexUsage),
+            ("claudeModel", ClaudeModelButton, ModuleClaudeModel),
+            ("claudeEffort", ClaudeEffortButton, ModuleClaudeEffort),
+            ("claudeUsage", ClaudeUsageButton, ModuleClaudeUsage)
+        };
+        foreach (var entry in entries)
+        {
+            var enabled = _enabledModules.Contains(entry.Key);
+            entry.View.Visibility = enabled ? Visibility.Visible : Visibility.Collapsed;
+            entry.Menu.IsChecked = enabled;
+        }
+        var count = Math.Max(1, _enabledModules.Count);
+        var columns = count <= 5 ? count : (int)Math.Ceiling(count / 2d);
+        var rows = (int)Math.Ceiling(count / (double)columns);
+        ModuleGrid.Columns = columns;
+        ModuleGrid.Rows = rows;
+        if (resize)
+        {
+            Width = Math.Max(300, columns * 150 + 32);
+            Height = Math.Max(175, rows * 180 + 32);
+        }
     }
 
     private static TaskState InferState(JsonElement thread)
@@ -196,20 +382,34 @@ public partial class MainWindow : Window
         }
         catch (Exception error)
         {
-            Title = $"Codex Float — {error.Message}";
+            Title = $"Vibe Float — Codex: {error.Message}";
         }
     }
 
     private void Task_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not Button { Tag: string tag } || !int.TryParse(tag, out var index) || index >= _tasks.Count) return;
-        Process.Start(new ProcessStartInfo($"codex://threads/{Uri.EscapeDataString(_tasks[index].Id)}")
+        var task = _tasks[index];
+        if (task.Provider == TaskProvider.Codex)
         {
-            UseShellExecute = true
+            Process.Start(new ProcessStartInfo($"codex://threads/{Uri.EscapeDataString(task.Id)}")
+            {
+                UseShellExecute = true
+            });
+            return;
+        }
+        var cwd = string.IsNullOrWhiteSpace(task.Cwd)
+            ? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)
+            : task.Cwd;
+        Process.Start(new ProcessStartInfo("cmd.exe",
+            $"/d /s /c start \"Claude\" cmd.exe /k \"cd /d \\\"{cwd}\\\" && claude --resume \\\"{task.Id}\\\"\"")
+        {
+            UseShellExecute = false,
+            CreateNoWindow = true
         });
     }
 
-    private void RenderTask(int index, TaskCard? task)
+    private void RenderTask(int index, VibeTask? task)
     {
         var button = new[] { TaskButton0, TaskButton1, TaskButton2 }[index];
         var icon = new[] { TaskIcon0, TaskIcon1, TaskIcon2 }[index];
@@ -237,8 +437,9 @@ public partial class MainWindow : Window
         icon.Text = glyph; icon.Foreground = brush;
         ring.BorderBrush = brush; ring.Background = Brush($"20{color[1..]}");
         status.Text = label;
-        project.Text = ProjectCode(task.Cwd); project.Foreground = brush;
-        button.ToolTip = task.Title;
+        var provider = task.Provider == TaskProvider.Claude ? "CL" : "CX";
+        project.Text = $"{provider} · {ProjectCode(task.Cwd, provider)}"; project.Foreground = brush;
+        button.ToolTip = $"[{(task.Provider == TaskProvider.Claude ? "Claude" : "Codex")}] {task.Title}";
     }
 
     private void RenderEffort()
@@ -260,17 +461,17 @@ public partial class MainWindow : Window
         EffortPill.Background = Brush($"20{color[1..]}");
     }
 
-    private void RenderUsage(double? percent)
+    private static void RenderUsage(double? percent, TextBlock text, System.Windows.Shapes.Path arc)
     {
-        UsageText.Text = percent is null ? "N/A" : $"{Math.Round(percent.Value):0}%";
+        text.Text = percent is null ? "N/A" : $"{Math.Round(percent.Value):0}%";
         if (percent is null)
         {
-            UsageArc.Data = null;
+            arc.Data = null;
             return;
         }
         var color = percent >= 90 ? "#FF5F6D" : percent >= 70 ? "#FFBD45" : "#53D68A";
-        UsageArc.Stroke = Brush(color);
-        UsageArc.Data = ArcGeometry(percent.Value, 48, 48, 42);
+        arc.Stroke = Brush(color);
+        arc.Data = ArcGeometry(percent.Value, 48, 48, 42);
     }
 
     private static Geometry ArcGeometry(double percent, double cx, double cy, double radius)
@@ -313,9 +514,9 @@ public partial class MainWindow : Window
         element.ValueKind == JsonValueKind.Object && element.TryGetProperty(name, out var value) &&
         value.ValueKind == JsonValueKind.String ? value.GetString() ?? "" : "";
 
-    private static string ProjectCode(string cwd)
+    private static string ProjectCode(string cwd, string fallback = "CX")
     {
-        var name = string.IsNullOrWhiteSpace(cwd) ? "CODEX" : Path.GetFileName(cwd.TrimEnd('\\', '/'));
+        var name = string.IsNullOrWhiteSpace(cwd) ? fallback : Path.GetFileName(cwd.TrimEnd('\\', '/'));
         return new string(name.Take(4).ToArray()).ToUpperInvariant();
     }
 
@@ -331,7 +532,7 @@ public partial class MainWindow : Window
     {
         RenderEmptyTasks();
         EffortText.Text = "离线";
-        UsageText.Text = "离线";
+        CodexUsageText.Text = "离线";
     }
 
     private void Window_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -363,10 +564,9 @@ public partial class MainWindow : Window
     private async void Window_Closed(object? sender, EventArgs e)
     {
         _taskTimer.Stop();
+        _claudeTimer.Stop();
         _metadataTimer.Stop();
         await _codex.DisposeAsync();
     }
 
-    private sealed record TaskCard(string Id, string Title, string Cwd, TaskState State);
-    private enum TaskState { Active, Idle, NeedsInput, Error, Waiting }
 }

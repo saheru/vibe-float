@@ -1,6 +1,6 @@
 {
-  "name": "codex-float-workspace",
-  "version": "0.2.1",
+  "name": "vibe-float-workspace",
+  "version": "0.3.0",
   "private": true,
   "scripts": {
     "test": "node --test test/plugin.test.js",

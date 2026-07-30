@@ -12,7 +12,7 @@
       <circle cx="175" cy="108" r="56" fill="#35a7ff" opacity=".14" stroke="#35a7ff" stroke-width="4"/>
       <path d="M154 77l47 31-47 31z" fill="#35a7ff"/>
       <text x="175" y="205" text-anchor="middle" fill="#fff" font-size="28" font-weight="850">任务状态</text>
-      <text x="175" y="246" text-anchor="middle" fill="#91a0b8" font-size="17">运行 · 待回复 · 完成 · 错误</text>
+      <text x="175" y="246" text-anchor="middle" fill="#91a0b8" font-size="17">Codex + Claude 混合任务状态</text>
       <text x="175" y="278" text-anchor="middle" fill="#91a0b8" font-size="17">点击直接跳转对应任务</text>
       <rect x="92" y="311" width="166" height="30" rx="15" fill="#35a7ff" opacity=".12"/>
       <text x="175" y="332" text-anchor="middle" fill="#35a7ff" font-size="14" font-weight="800">事件触发 · 0.8 秒兜底</text>
@@ -23,8 +23,8 @@
       <rect x="95" y="127" width="160" height="54" rx="27" fill="#ffbd45" opacity=".14" stroke="#ffbd45" stroke-width="3"/>
       <text x="175" y="163" text-anchor="middle" fill="#ffbd45" font-size="25" font-weight="900">XHIGH</text>
       <text x="175" y="234" text-anchor="middle" fill="#fff" font-size="28" font-weight="850">模型与强度</text>
-      <text x="175" y="275" text-anchor="middle" fill="#91a0b8" font-size="17">切换模型、effort 与权限</text>
-      <text x="175" y="307" text-anchor="middle" fill="#91a0b8" font-size="17">配置同步到 Codex CLI</text>
+      <text x="175" y="275" text-anchor="middle" fill="#91a0b8" font-size="17">Codex Sol 与 Claude Model / Effort</text>
+      <text x="175" y="307" text-anchor="middle" fill="#91a0b8" font-size="17">配置同步到对应 CLI</text>
       <circle cx="128" cy="331" r="7" fill="#53d68a"/><circle cx="151" cy="331" r="7" fill="#35a7ff"/>
       <circle cx="174" cy="331" r="7" fill="#ffbd45"/><circle cx="197" cy="331" r="7" fill="#ff7a59"/>
       <circle cx="220" cy="331" r="7" fill="#b77cff"/>
@@ -36,10 +36,10 @@
         stroke-dasharray="276 440" transform="rotate(-90 175 118)"/>
       <text x="175" y="132" text-anchor="middle" fill="#fff" font-size="37" font-weight="900">63%</text>
       <text x="175" y="231" text-anchor="middle" fill="#fff" font-size="28" font-weight="850">用量进度轮</text>
-      <text x="175" y="272" text-anchor="middle" fill="#91a0b8" font-size="17">Codex 5h 与周 Usage</text>
+      <text x="175" y="272" text-anchor="middle" fill="#91a0b8" font-size="17">Codex 与 Claude Usage</text>
       <text x="175" y="304" text-anchor="middle" fill="#91a0b8" font-size="17">阈值变色，不伪造缺失数据</text>
       <rect x="111" y="324" width="128" height="25" rx="13" fill="#53d68a" opacity=".12"/>
-      <text x="175" y="342" text-anchor="middle" fill="#53d68a" font-size="13" font-weight="800">实时账户限额</text>
+      <text x="175" y="342" text-anchor="middle" fill="#53d68a" font-size="13" font-weight="800">CX / CL 清晰区分</text>
     </g>
   </g>
 </svg>
