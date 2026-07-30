@@ -2,9 +2,9 @@
 
 ![Codex Float](docs/images/hero.svg)
 
-# Codex Float
+# Codex Float & StreamDock Control
 
-**把 Codex 最近任务、Sol 推理强度和周 Usage 放进原生桌面悬浮面板。**
+**把 Codex 最近任务、Sol 推理强度和周 Usage 放进桌面悬浮面板与 StreamDock 控制设备。**
 
 [![macOS 14+](https://img.shields.io/badge/macOS-14%2B-111827?logo=apple&logoColor=white)](https://github.com/saheru/codex-float/releases)
 [![Windows 10/11](https://img.shields.io/badge/Windows-10%20%2F%2011-0078D4?logo=windows11&logoColor=white)](https://github.com/saheru/codex-float/releases)
@@ -13,6 +13,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-b77cff)](LICENSE)
 
 [下载最新版](https://github.com/saheru/codex-float/releases/latest) ·
+[StreamDock 插件](#-streamdock-control) ·
 [使用方法](#-使用方法) ·
 [开发构建](#-开发与构建) ·
 [提交问题](https://github.com/saheru/codex-float/issues)
@@ -21,7 +22,7 @@
 
 ---
 
-Codex Float 是一个轻量的原生桌面悬浮工具，提供 **macOS SwiftUI** 和 **Windows WPF** 两个版本，通过本机 `codex app-server` 读取 Codex 状态。无需浏览器扩展，无需云端服务，不保存 Token。
+本项目提供 **macOS SwiftUI**、**Windows WPF** 悬浮工具和通用 **StreamDock Codex Control** 插件。三种客户端均通过本机 `codex app-server` 读取状态，无需浏览器扩展、云端服务或 Token 存储。
 
 ![核心能力](docs/images/features.svg)
 
@@ -85,6 +86,7 @@ flowchart LR
     Float --> Config["Codex 用户配置"]
     Config --> CLI["Codex CLI 新任务"]
     Threads --> Desktop["Codex Desktop 深链接"]
+    Dock["StreamDock Codex Control"] --> AS
 ```
 
 Codex Float 默认按以下顺序查找 Codex：
@@ -99,11 +101,52 @@ Sol 模型与推理强度通过 `config/batchWrite` 写入 Codex 用户配置。
 
 > 已运行任务不会在中途更换模型或 effort；新建任务会采用更新后的配置。命令行显式参数优先于用户配置。
 
+## 🎛 StreamDock Control
+
+插件适用于支持 Keypad、Knob 和 Information 控制器的 StreamDock 设备，不依赖具体设备型号。
+
+| Action | 控制方式 | 功能 |
+|---|---|---|
+| Codex 任务 | 可视按键 | 显示最近任务状态与项目缩写；点击切换任务 |
+| 模型与推理层级 | 旋钮 / 按键 | 切换模型和当前模型支持的 reasoning effort |
+| Codex 权限 | 旋钮 / 按键 | 切换只读、工作区与完全访问 |
+| 当前模型 | 可视按键 | 显示并切换当前模型 |
+| 当前权限 | 可视按键 | 显示并切换当前权限 |
+| Sol 推理强度 | 旋钮 / 可视按键 | 切换 Sol effort，并使用分级颜色 |
+| 5h Usage | 可视按键 / 信息屏 | 5 小时限额进度轮 |
+| 周 Usage | 可视按键 / 信息屏 | 周限额、重置时间与进度轮 |
+
+任务完成或等待回复时可以播放增强提示音，并显示带任务标题和状态的系统通知。
+
+### 打包
+
+```bash
+npm install
+npm test
+npm run package:streamdock
+```
+
+生成 `dist/com.tlm.codex-control.sdPlugin.zip`。
+
+### 手动安装
+
+将 `com.tlm.codex-control.sdPlugin` 复制到 StreamDock 的插件目录，然后重启 StreamDock 软件：
+
+- macOS：`~/Library/Application Support/HotSpot/StreamDock/plugins/`
+- Windows：`%APPDATA%\HotSpot\StreamDock\plugins\`
+
+macOS 也可以直接运行：
+
+```bash
+./scripts/install-codex-streamdock-macos.sh
+```
+
 ## 🛠 开发与构建
 
 ### 环境
 
 - Swift 6
+- Node.js 20+
 - macOS Command Line Tools
 - 已安装 Codex CLI
 
@@ -150,6 +193,8 @@ dotnet publish .\windows\CodexFloat\CodexFloat.csproj `
 │   ├── Package.swift
 │   └── Sources/CodexFloat/
 ├── windows/CodexFloat/               # Windows 10/11 WPF 版本
+├── com.tlm.codex-control.sdPlugin/   # 通用 StreamDock Codex 插件
+├── test/plugin.test.js               # StreamDock 插件测试
 ├── docs/images/
 ├── .github/workflows/                 # Windows 自动构建
 └── scripts/

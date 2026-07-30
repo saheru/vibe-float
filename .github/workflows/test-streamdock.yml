@@ -1,0 +1,54 @@
+name: Test StreamDock Plugin
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+    paths:
+      - "com.tlm.codex-control.sdPlugin/**"
+      - "test/plugin.test.js"
+      - "package.json"
+      - "package-lock.json"
+      - "scripts/package-codex-streamdock.sh"
+      - ".github/workflows/test-streamdock.yml"
+  pull_request:
+    paths:
+      - "com.tlm.codex-control.sdPlugin/**"
+      - "test/plugin.test.js"
+      - "package.json"
+      - "package-lock.json"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  test-and-package:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm --prefix com.tlm.codex-control.sdPlugin/plugin ci
+
+      - name: Run tests
+        run: npm test
+
+      - name: Package plugin
+        run: npm run package:streamdock
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: StreamDock-Codex-Control
+          path: dist/com.tlm.codex-control.sdPlugin.zip
+
+      - name: Upload tagged release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/com.tlm.codex-control.sdPlugin.zip

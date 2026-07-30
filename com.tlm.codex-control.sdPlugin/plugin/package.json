@@ -1,0 +1,10 @@
+{
+  "name": "streamdock-codex-control",
+  "version": "0.7.5",
+  "private": true,
+  "main": "index.js",
+  "engines": { "node": ">=20" },
+  "dependencies": {
+    "ws": "^8.18.3"
+  }
+}

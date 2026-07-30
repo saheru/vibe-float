@@ -1,0 +1,117 @@
+{
+  "Actions": [
+    {
+      "UUID": "com.tlm.codex-control.task",
+      "Name": "Codex 任务",
+      "Tooltip": "显示最近 Codex 任务状态，按下切换到该任务",
+      "Icon": "static/task.png",
+      "States": [{ "Image": "static/task.png", "ShowTitle": false }],
+      "Settings": { "slot": 0, "notifyDone": true, "notifyInput": true },
+      "Controllers": ["Keypad"],
+      "UserTitleEnabled": false,
+      "SupportedInMultiActions": false,
+      "PropertyInspectorPath": "propertyInspector/index.html"
+    },
+    {
+      "UUID": "com.tlm.codex-control.model",
+      "Name": "Codex 模型与推理层级",
+      "Tooltip": "旋转切换模型；按住旋转切换推理层级",
+      "Icon": "static/model.png",
+      "States": [{ "Image": "static/model.png", "ShowTitle": false }],
+      "Settings": {},
+      "Controllers": ["Knob", "Keypad"],
+      "UserTitleEnabled": false,
+      "SupportedInMultiActions": false,
+      "PropertyInspectorPath": "propertyInspector/index.html"
+    },
+    {
+      "UUID": "com.tlm.codex-control.permission",
+      "Name": "Codex 权限",
+      "Tooltip": "旋转切换只读、工作区、完全访问权限",
+      "Icon": "static/permission.png",
+      "States": [{ "Image": "static/permission.png", "ShowTitle": false }],
+      "Settings": {},
+      "Controllers": ["Knob", "Keypad"],
+      "UserTitleEnabled": false,
+      "SupportedInMultiActions": false,
+      "PropertyInspectorPath": "propertyInspector/index.html"
+    },
+    {
+      "UUID": "com.tlm.codex-control.currentmodel",
+      "Name": "当前 Codex 模型",
+      "Tooltip": "屏幕显示当前模型和推理层级；按下切换模型",
+      "Icon": "static/model.png",
+      "States": [{ "Image": "static/model.png", "ShowTitle": false }],
+      "Settings": {},
+      "Controllers": ["Keypad"],
+      "UserTitleEnabled": false,
+      "SupportedInMultiActions": false,
+      "PropertyInspectorPath": "propertyInspector/index.html"
+    },
+    {
+      "UUID": "com.tlm.codex-control.currentpermission",
+      "Name": "当前 Codex 权限",
+      "Tooltip": "屏幕显示当前权限；按下切换权限",
+      "Icon": "static/permission.png",
+      "States": [{ "Image": "static/permission.png", "ShowTitle": false }],
+      "Settings": {},
+      "Controllers": ["Keypad"],
+      "UserTitleEnabled": false,
+      "SupportedInMultiActions": false,
+      "PropertyInspectorPath": "propertyInspector/index.html"
+    },
+    {
+      "UUID": "com.tlm.codex-control.soleffort",
+      "Name": "Sol 推理强度",
+      "Tooltip": "Sol 专用：旋转或按下切换推理强度",
+      "Icon": "static/model.png",
+      "States": [{ "Image": "static/model.png", "ShowTitle": false }],
+      "Settings": {},
+      "Controllers": ["Knob", "Keypad"],
+      "UserTitleEnabled": false,
+      "SupportedInMultiActions": false,
+      "PropertyInspectorPath": "propertyInspector/index.html"
+    },
+    {
+      "UUID": "com.tlm.codex-control.usage5h",
+      "Name": "Codex 5h Usage",
+      "Tooltip": "显示 Codex 5 小时用量和动态进度轮",
+      "Icon": "static/usage.png",
+      "States": [{ "Image": "static/usage.png", "ShowTitle": false }],
+      "Settings": {},
+      "Controllers": ["Keypad", "Information"],
+      "UserTitleEnabled": false,
+      "SupportedInMultiActions": false,
+      "PropertyInspectorPath": "propertyInspector/index.html"
+    },
+    {
+      "UUID": "com.tlm.codex-control.usageweek",
+      "Name": "Codex 周 Usage",
+      "Tooltip": "显示 Codex 周用量和动态进度轮",
+      "Icon": "static/usage.png",
+      "States": [{ "Image": "static/usage.png", "ShowTitle": false }],
+      "Settings": {},
+      "Controllers": ["Keypad", "Information"],
+      "UserTitleEnabled": false,
+      "SupportedInMultiActions": false,
+      "PropertyInspectorPath": "propertyInspector/index.html"
+    }
+  ],
+  "SDKVersion": 1,
+  "Author": "TLM",
+  "Name": "Codex Control",
+  "Icon": "static/plugin.png",
+  "CategoryIcon": "static/category.png",
+  "CodePathMac": "plugin/index.js",
+  "CodePathWin": "plugin/index.js",
+  "Description": "面向 StreamDock 设备的 Codex 模型、推理层级、权限、任务状态与 Usage 控制台",
+  "Category": "Codex",
+  "Version": "0.7.5",
+  "URL": "https://developers.openai.com/codex/",
+  "OS": [
+    { "Platform": "mac", "MinimumVersion": "10.15" },
+    { "Platform": "windows", "MinimumVersion": "10" }
+  ],
+  "Software": { "MinimumVersion": "3.10.188.226" },
+  "Nodejs": { "Version": "20" }
+}

@@ -16,6 +16,14 @@ Windows 版本需要 .NET 8 SDK：
 dotnet build .\windows\CodexFloat\CodexFloat.csproj
 ```
 
+StreamDock 插件：
+
+```bash
+npm install
+npm test
+npm run package:streamdock
+```
+
 ## 提交要求
 
 - 不要提交账号、Token、Cookie、Codex 会话或本地日志。

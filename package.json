@@ -1,0 +1,9 @@
+{
+  "name": "codex-float-workspace",
+  "version": "0.2.1",
+  "private": true,
+  "scripts": {
+    "test": "node --test test/plugin.test.js",
+    "package:streamdock": "./scripts/package-codex-streamdock.sh"
+  }
+}
