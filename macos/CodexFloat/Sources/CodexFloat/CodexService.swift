@@ -54,7 +54,7 @@ final class CodexService: ObservableObject {
                 "clientInfo": [
                     "name": "codex_float",
                     "title": "Codex Float",
-                    "version": "0.2.3"
+                    "version": "0.2.4"
                 ],
                 "capabilities": ["experimentalApi": true]
             ]) { [weak self] result in
