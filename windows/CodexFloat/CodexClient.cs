@@ -39,7 +39,7 @@ internal sealed class CodexClient : IAsyncDisposable
 
         await RequestAsync("initialize", new
         {
-            clientInfo = new { name = "codex_float_windows", title = "Codex Float", version = "0.2.4" },
+            clientInfo = new { name = "codex_float_windows", title = "Codex Float", version = "0.2.5" },
             capabilities = new { experimentalApi = true }
         });
         await NotifyAsync("initialized", new { });
