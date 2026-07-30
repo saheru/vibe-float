@@ -1,5 +1,7 @@
 <div align="center">
 
+[简体中文](README.md) · [English](README_EN.md) · [日本語](README_JA.md)
+
 <img src="docs/images/app-icon.png" width="128" alt="Vibe Float icon">
 
 ![Vibe Float](docs/images/hero.svg)
