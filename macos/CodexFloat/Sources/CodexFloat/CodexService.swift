@@ -26,29 +26,45 @@ final class CodexService: ObservableObject {
     private var usageTimer: Timer?
     private var staticTimer: Timer?
     private var claudeTimer: Timer?
+    private var reconnectTimer: Timer?
     private var eventRefreshTimer: Timer?
     private var isRefreshingTasks = false
     private var isRefreshingUsage = false
     private var isRefreshingStatic = false
     private var stateCache: [String: (signature: String, state: TaskState)] = [:]
     private var isRefreshingClaude = false
+    private var shouldRun = false
+    private var lastServerError = ""
 
     func start() {
+        shouldRun = true
         startClaudeMonitoring()
         guard process == nil else { return }
+        reconnectTimer?.invalidate()
+        reconnectTimer = nil
         do {
             let task = Process()
             let input = Pipe()
             let output = Pipe()
-            task.executableURL = URL(fileURLWithPath: try findCodex())
+            let errorOutput = Pipe()
+            let executable = try findCodex()
+            task.executableURL = URL(fileURLWithPath: executable)
             task.arguments = ["app-server"]
+            task.environment = codexEnvironment(executable: executable)
             task.standardInput = input
             task.standardOutput = output
-            task.standardError = Pipe()
+            task.standardError = errorOutput
             task.terminationHandler = { [weak self] _ in
                 Task { @MainActor in
-                    self?.connected = false
-                    self?.process = nil
+                    guard let self else { return }
+                    self.connected = false
+                    self.process = nil
+                    self.stdin = nil
+                    self.stopCodexTimers()
+                    if !self.lastServerError.isEmpty {
+                        self.lastError = self.lastServerError
+                    }
+                    self.scheduleReconnect()
                 }
             }
             output.fileHandleForReading.readabilityHandler = { [weak self] handle in
@@ -56,20 +72,30 @@ final class CodexService: ObservableObject {
                 guard !data.isEmpty else { return }
                 Task { @MainActor in self?.consume(data) }
             }
+            errorOutput.fileHandleForReading.readabilityHandler = { [weak self] handle in
+                let data = handle.availableData
+                guard !data.isEmpty else { return }
+                let message = String(decoding: data, as: UTF8.self)
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !message.isEmpty else { return }
+                Task { @MainActor in self?.lastServerError = message }
+            }
             try task.run()
+            lastServerError = ""
             process = task
             stdin = input.fileHandleForWriting
             request("initialize", params: [
                 "clientInfo": [
                     "name": "vibe_float",
                     "title": "Vibe Float",
-                    "version": "0.3.1"
+                    "version": "0.3.2"
                 ],
                 "capabilities": ["experimentalApi": true]
             ]) { [weak self] result in
                 guard let self else { return }
                 if case .failure(let error) = result {
                     self.fail(error)
+                    self.process?.terminate()
                     return
                 }
                 self.notify("initialized", params: [:])
@@ -86,19 +112,19 @@ final class CodexService: ObservableObject {
                 }
             }
         } catch {
+            connected = false
             fail(error)
+            scheduleReconnect()
         }
     }
 
     func stop() {
-        taskTimer?.invalidate()
-        usageTimer?.invalidate()
-        staticTimer?.invalidate()
+        shouldRun = false
+        reconnectTimer?.invalidate()
+        reconnectTimer = nil
+        stopCodexTimers()
         claudeTimer?.invalidate()
         eventRefreshTimer?.invalidate()
-        taskTimer = nil
-        usageTimer = nil
-        staticTimer = nil
         claudeTimer = nil
         eventRefreshTimer = nil
         process?.terminate()
@@ -515,10 +541,48 @@ final class CodexService: ObservableObject {
 
     private func fail(_ error: Error) {
         lastError = error.localizedDescription
-        connected = false
         isRefreshingTasks = false
         isRefreshingUsage = false
         isRefreshingStatic = false
+    }
+
+    private func stopCodexTimers() {
+        taskTimer?.invalidate()
+        usageTimer?.invalidate()
+        staticTimer?.invalidate()
+        taskTimer = nil
+        usageTimer = nil
+        staticTimer = nil
+    }
+
+    private func scheduleReconnect() {
+        guard shouldRun, reconnectTimer == nil else { return }
+        reconnectTimer = Timer.scheduledTimer(withTimeInterval: 2, repeats: false) { [weak self] _ in
+            Task { @MainActor in
+                self?.reconnectTimer = nil
+                self?.start()
+            }
+        }
+    }
+
+    private func codexEnvironment(executable: String) -> [String: String] {
+        var environment = ProcessInfo.processInfo.environment
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        let executableDirectory = URL(fileURLWithPath: executable).deletingLastPathComponent().path
+        let additions = [
+            executableDirectory,
+            "\(home)/.local/share/fnm/aliases/default/bin",
+            "\(home)/.local/bin",
+            "/opt/homebrew/bin",
+            "/usr/local/bin",
+            "/usr/bin",
+            "/bin"
+        ]
+        let existing = environment["PATH"] ?? ""
+        environment["PATH"] = (additions + [existing])
+            .filter { !$0.isEmpty }
+            .joined(separator: ":")
+        return environment
     }
 
     private func findCodex() throws -> String {
