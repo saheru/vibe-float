@@ -4,6 +4,7 @@ const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 const vm = require("node:vm");
+const { spawnSync } = require("node:child_process");
 
 const { CodexClient, extractUsageWindows, inferThreadStatus, findCodex } = require("../com.tlm.codex-control.sdPlugin/plugin/codex-client");
 const {
@@ -271,6 +272,24 @@ test("Claude Usage capture preserves an existing Status Line command", () => {
   assert.match(stored.statusLine.command, /claude-status\.js/);
   const encoded = stored.statusLine.command.match(/--next-base64 "([^"]*)"/)[1];
   assert.equal(Buffer.from(encoded, "base64").toString("utf8"), "existing-status --compact");
+});
+
+test("Claude Status Line helper stores the supplied Usage snapshot", () => {
+  if (process.platform === "win32") return;
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "vibe-claude-helper-"));
+  const helper = path.join(
+    __dirname,
+    "../com.tlm.codex-control.sdPlugin/plugin/claude-status.js"
+  );
+  const input = JSON.stringify({ rate_limits: { five_hour: { used_percentage: 33 } } });
+  const result = spawnSync(process.execPath, [helper], {
+    input,
+    encoding: "utf8",
+    env: { ...process.env, HOME: home }
+  });
+  assert.equal(result.status, 0);
+  const cache = path.join(home, "Library", "Application Support", "Vibe Float", "claude-status.json");
+  assert.deepEqual(JSON.parse(fs.readFileSync(cache, "utf8")), JSON.parse(input));
 });
 
 test("task card shows status and project name without the task title", () => {
