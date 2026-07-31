@@ -6,7 +6,13 @@ const path = require("node:path");
 const vm = require("node:vm");
 const { spawnSync } = require("node:child_process");
 
-const { CodexClient, extractUsageWindows, inferThreadStatus, findCodex } = require("../com.tlm.codex-control.sdPlugin/plugin/codex-client");
+const {
+  CodexClient,
+  extractUsageWindows,
+  inferThreadStatus,
+  findCodex,
+  readAuthFingerprint
+} = require("../com.tlm.codex-control.sdPlugin/plugin/codex-client");
 const {
   ClaudeClient,
   scanSessions,
@@ -122,6 +128,66 @@ test("usage windows select 5h and week without inventing missing data", () => {
   });
   assert.equal(modelSpecificFirst.week.usedPercent, 9);
   assert.equal(modelSpecificFirst.week.resetsAt, 400);
+});
+
+test("Codex account fingerprint changes only when the active identity changes", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "vibe-codex-auth-"));
+  const authPath = path.join(dir, "auth.json");
+  fs.writeFileSync(authPath, JSON.stringify({
+    auth_mode: "chatgpt",
+    tokens: { account_id: "account-a", access_token: "token-1" },
+    last_refresh: "one"
+  }));
+  const first = readAuthFingerprint(authPath);
+
+  fs.writeFileSync(authPath, JSON.stringify({
+    auth_mode: "chatgpt",
+    tokens: { account_id: "account-a", access_token: "token-2" },
+    last_refresh: "two"
+  }));
+  assert.equal(readAuthFingerprint(authPath), first);
+
+  fs.writeFileSync(authPath, JSON.stringify({
+    auth_mode: "chatgpt",
+    tokens: { account_id: "account-b", access_token: "token-3" }
+  }));
+  assert.notEqual(readAuthFingerprint(authPath), first);
+  fs.rmSync(authPath);
+  assert.equal(readAuthFingerprint(authPath), "missing");
+});
+
+test("Codex client restarts and clears cached account data after account switch", async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "vibe-codex-switch-"));
+  const authPath = path.join(dir, "auth.json");
+  const writeAccount = id => fs.writeFileSync(authPath, JSON.stringify({
+    auth_mode: "chatgpt",
+    tokens: { account_id: id }
+  }));
+  writeAccount("account-a");
+  const client = new CodexClient({ codexPath: process.execPath, authPath });
+  client.ready = true;
+  client.models = [{ model: "old-model" }];
+  client.config = { model: "old-model" };
+  client.threads = [{ id: "old-thread" }];
+  client.rateLimits = { rateLimits: { primary: { usedPercent: 99 } } };
+  let stops = 0;
+  let starts = 0;
+  client.stop = () => { stops += 1; client.ready = false; };
+  client.start = async () => {
+    starts += 1;
+    client.ready = true;
+    client.authFingerprint = readAuthFingerprint(authPath);
+  };
+
+  writeAccount("account-b");
+  assert.equal(await client.ensureCurrentAccount(), true);
+  assert.equal(stops, 1);
+  assert.equal(starts, 1);
+  assert.deepEqual(client.models, []);
+  assert.deepEqual(client.config, {});
+  assert.deepEqual(client.threads, []);
+  assert.equal(client.rateLimits, null);
+  assert.equal(await client.ensureCurrentAccount(), false);
 });
 
 test("thread status is inferred from persisted task events", () => {

@@ -147,6 +147,8 @@ Sol 模型与推理强度通过 `config/batchWrite` 写入 Codex 用户配置。
 
 Codex 与 Claude 任务完成或等待回复时都可以播放增强提示音，并显示带任务标题、来源和状态的系统通知。Claude 的 Model 与 Effort 写入 `~/.claude/settings.json`，对新建 Claude Code CLI 会话生效。
 
+插件会检测 Codex 登录身份变化；切换 Codex 账号后会自动重启本地 `app-server`，清除旧账号缓存，并刷新模型与 5h/周 Usage，无需重新添加按键。
+
 首次使用 Claude Usage 时，在对应动作的属性面板点击 **启用 Claude Usage 采集**，然后重启正在运行的 Claude CLI 会话。插件会保留并继续调用原有 Status Line 命令。
 
 ### 打包

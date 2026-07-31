@@ -130,6 +130,8 @@ The repository also contains a generic StreamDock plugin for Codex and Claude Co
 
 Claude Model and Effort changes update `~/.claude/settings.json` for new Claude Code CLI sessions. Enable the local Status Line capture from a Claude Usage action's property inspector, then restart active Claude CLI sessions.
 
+The plugin detects Codex login identity changes. After you switch Codex accounts, it automatically restarts the local `app-server`, clears the previous account cache, and refreshes models plus 5h/weekly Usage without requiring you to re-add actions.
+
 ## Build from source
 
 ### macOS

@@ -130,6 +130,8 @@ flowchart LR
 
 Claude Model / Effort は `~/.claude/settings.json` に保存され、新しい Claude Code CLI セッションへ反映されます。Claude Usage アクションのプロパティ画面でローカル Status Line 取得を有効にし、実行中の Claude CLI セッションを再起動してください。
 
+プラグインは Codex のログイン ID 変更を検出します。Codex アカウントを切り替えると、ローカル `app-server` を自動再起動し、以前のアカウントキャッシュを消去して、モデルと 5h／週間 Usage を更新します。アクションを追加し直す必要はありません。
+
 ## ソースからビルド
 
 ### macOS

@@ -1,4 +1,5 @@
 const { spawn, spawnSync } = require("node:child_process");
+const { createHash } = require("node:crypto");
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
@@ -14,8 +15,12 @@ const PERMISSIONS = [
 class CodexClient {
   constructor(options = {}) {
     this.codexPath = options.codexPath || findCodex();
+    this.authPath = options.authPath || defaultAuthPath();
+    this.authFingerprint = readAuthFingerprint(this.authPath);
     this.proc = null;
     this.starting = null;
+    this.accountTransition = null;
+    this.accountDirty = false;
     this.pending = new Map();
     this.nextId = 1;
     this.ready = false;
@@ -41,33 +46,39 @@ class CodexClient {
 
   async startProcess() {
     if (this.proc) return;
-    this.proc = spawn(this.codexPath, ["app-server"], {
+    const proc = spawn(this.codexPath, ["app-server"], {
       stdio: ["pipe", "pipe", "pipe"],
       env: process.env,
       windowsHide: true
     });
-    this.proc.on("error", error => this.failAll(error));
-    this.proc.on("exit", (code, signal) => {
+    this.proc = proc;
+    proc.on("error", error => this.failAll(error));
+    proc.on("exit", (code, signal) => {
+      if (this.proc !== proc) return;
       const error = new Error(`codex app-server exited (${code ?? signal})`);
       this.proc = null;
       this.ready = false;
       this.failAll(error);
     });
-    this.proc.stderr.on("data", data => log.info("codex", data.toString().trim()));
-    readline.createInterface({ input: this.proc.stdout }).on("line", line => this.onLine(line));
+    proc.stderr.on("data", data => log.info("codex", data.toString().trim()));
+    readline.createInterface({ input: proc.stdout }).on("line", line => this.onLine(line));
     await this.request("initialize", {
-      clientInfo: { name: "streamdock_vibe_control", title: "StreamDock Vibe Control", version: "0.8.0" },
+      clientInfo: { name: "streamdock_vibe_control", title: "StreamDock Vibe Control", version: "0.8.1" },
       capabilities: { experimentalApi: true }
     });
     this.notify("initialized", {});
     this.ready = true;
     await this.refreshStatic();
+    this.authFingerprint = readAuthFingerprint(this.authPath);
+    this.accountDirty = false;
   }
 
   stop() {
-    if (this.proc) this.proc.kill();
+    const proc = this.proc;
     this.proc = null;
     this.ready = false;
+    this.failAll(new Error("Codex app-server stopped"));
+    if (proc) proc.kill();
   }
 
   onLine(line) {
@@ -82,6 +93,13 @@ class CodexClient {
     }
     if (message.method === "account/rateLimits/updated") {
       this.rateLimits = mergeRateLimitUpdate(this.rateLimits, message.params?.rateLimits);
+    }
+    if (message.method === "account/updated" || message.method === "account/login/completed") {
+      // The app-server can observe an account change before the next timer
+      // tick. Drop the previous account's Usage immediately and reload model
+      // entitlements on the next request.
+      this.rateLimits = null;
+      this.accountDirty = true;
     }
   }
 
@@ -124,8 +142,45 @@ class CodexClient {
     this.config = configResult.config || {};
   }
 
-  async refresh() {
+  async ensureCurrentAccount() {
     if (!this.ready) await this.start();
+    if (this.accountTransition) return this.accountTransition;
+
+    const nextFingerprint = readAuthFingerprint(this.authPath);
+    if (nextFingerprint !== this.authFingerprint) {
+      this.accountTransition = (async () => {
+        log.info("Codex account changed; restarting app-server");
+        this.clearAccountCaches();
+        this.stop();
+        await this.start();
+        return true;
+      })();
+      try {
+        return await this.accountTransition;
+      } finally {
+        this.accountTransition = null;
+      }
+    }
+
+    if (this.accountDirty) {
+      this.clearAccountCaches();
+      await this.refreshStatic();
+      this.accountDirty = false;
+      this.authFingerprint = nextFingerprint;
+      return true;
+    }
+    return false;
+  }
+
+  clearAccountCaches() {
+    this.models = [];
+    this.config = {};
+    this.threads = [];
+    this.rateLimits = null;
+  }
+
+  async refresh() {
+    await this.ensureCurrentAccount();
     const [threadResult, configResult] = await Promise.all([
       this.request("thread/list", {
         limit: 16,
@@ -145,7 +200,7 @@ class CodexClient {
   }
 
   async refreshUsage() {
-    if (!this.ready) await this.start();
+    await this.ensureCurrentAccount();
     this.rateLimits = await this.request("account/rateLimits/read");
     return extractUsageWindows(this.rateLimits);
   }
@@ -271,6 +326,35 @@ function findCodex() {
   const found = spawnSync(process.platform === "win32" ? "where" : "which", ["codex"], { encoding: "utf8" });
   if (found.status === 0 && found.stdout.trim()) return found.stdout.trim().split(/\r?\n/)[0];
   return "codex";
+}
+
+function defaultAuthPath() {
+  const codexHome = process.env.CODEX_HOME || path.join(os.homedir(), ".codex");
+  return path.join(codexHome, "auth.json");
+}
+
+function readAuthFingerprint(authPath = defaultAuthPath()) {
+  try {
+    const auth = JSON.parse(fs.readFileSync(authPath, "utf8"));
+    const accountId = auth.tokens?.account_id
+      || auth.account_id
+      || auth.chatgpt_account_id
+      || null;
+    const apiKey = typeof auth.OPENAI_API_KEY === "string" ? auth.OPENAI_API_KEY : null;
+    return JSON.stringify({
+      authMode: auth.auth_mode || null,
+      accountId,
+      apiKey: apiKey ? createHash("sha256").update(apiKey).digest("hex") : null
+    });
+  } catch (error) {
+    if (error?.code === "ENOENT") return "missing";
+    try {
+      const stat = fs.statSync(authPath);
+      return `invalid:${stat.size}:${stat.mtimeMs}`;
+    } catch {
+      return "missing";
+    }
+  }
 }
 
 function inferThreadStatus(thread) {
@@ -401,4 +485,11 @@ function wrap(value, length) {
   return ((value % length) + length) % length;
 }
 
-module.exports = { CodexClient, PERMISSIONS, extractUsageWindows, inferThreadStatus, findCodex };
+module.exports = {
+  CodexClient,
+  PERMISSIONS,
+  extractUsageWindows,
+  inferThreadStatus,
+  findCodex,
+  readAuthFingerprint
+};
