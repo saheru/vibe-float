@@ -77,7 +77,7 @@ Vibe Float runs as a menu-bar utility without a Dock icon. Use the menu-bar icon
 ### Windows
 
 - Download `Vibe-Float-Windows-x64.zip`.
-- Extract it and run `VibeFloat.exe`.
+- Extract the **entire folder**, then run `Start-Vibe-Float.cmd` (recommended) or `VibeFloat.exe`. Do not launch it from the ZIP preview. Startup diagnostics are written to `%LOCALAPPDATA%\Vibe Float\startup.log`.
 - Supports Windows 10/11 x64.
 - The package is self-contained; a separate .NET installation is not required.
 
@@ -147,7 +147,7 @@ cd vibe-float
 ```powershell
 dotnet publish .\windows\CodexFloat\CodexFloat.csproj `
   -c Release -r win-x64 --self-contained true `
-  -p:PublishSingleFile=true
+  -p:PublishSingleFile=false
 ```
 
 ## Privacy

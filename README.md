@@ -90,7 +90,7 @@ xattr -dr com.apple.quarantine "/Applications/Vibe Float.app"
 
 ### Windows
 
-下载 `Vibe-Float-Windows-x64.zip`，解压后运行 `VibeFloat.exe`。
+下载 `Vibe-Float-Windows-x64.zip`，**完整解压整个目录**后运行 `Start-Vibe-Float.cmd`（推荐）或 `VibeFloat.exe`。不要直接在压缩包预览窗口中启动。若启动失败，诊断日志位于 `%LOCALAPPDATA%\Vibe Float\startup.log`。
 
 - Windows 10 或 Windows 11 x64。
 - 发布包为 self-contained，不需要单独安装 .NET。
@@ -213,7 +213,7 @@ dist/
 ```powershell
 dotnet publish .\windows\CodexFloat\CodexFloat.csproj `
   -c Release -r win-x64 --self-contained true `
-  -p:PublishSingleFile=true
+  -p:PublishSingleFile=false
 ```
 
 仓库中的 GitHub Actions 会自动构建免安装 Windows x64 压缩包。

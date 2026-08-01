@@ -77,7 +77,7 @@ Vibe Float は Dock アイコンを表示しないメニューバーユーティ
 ### Windows
 
 - `Vibe-Float-Windows-x64.zip` をダウンロードします。
-- 展開して `VibeFloat.exe` を実行します。
+- **フォルダー全体を展開**してから `Start-Vibe-Float.cmd`（推奨）または `VibeFloat.exe` を実行します。ZIP のプレビュー画面から直接起動しないでください。起動診断ログは `%LOCALAPPDATA%\Vibe Float\startup.log` に保存されます。
 - Windows 10/11 x64 に対応します。
 - 自己完結型のため、.NET を別途インストールする必要はありません。
 
@@ -147,7 +147,7 @@ cd vibe-float
 ```powershell
 dotnet publish .\windows\CodexFloat\CodexFloat.csproj `
   -c Release -r win-x64 --self-contained true `
-  -p:PublishSingleFile=true
+  -p:PublishSingleFile=false
 ```
 
 ## プライバシー

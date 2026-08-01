@@ -53,18 +53,21 @@ public partial class MainWindow : Window
         _taskTimer.Start();
         _claudeTimer.Start();
         _metadataTimer.Start();
-        await RefreshClaudeAsync();
         try
         {
+            await RefreshClaudeAsync();
             await _codex.StartAsync();
             _codexConnected = true;
             await RefreshAsync();
+            StartupDiagnostics.Write("Codex app-server connected");
         }
         catch (Exception error)
         {
             _codexConnected = false;
             Title = $"Vibe Float — Codex: {error.Message}";
+            RenderDisconnected();
             MergeTasks();
+            StartupDiagnostics.Write("Started without Codex connection", error);
         }
     }
 

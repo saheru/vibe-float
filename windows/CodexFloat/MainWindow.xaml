@@ -6,6 +6,7 @@
         mc:Ignorable="d"
         Title="Vibe Float"
         Width="800" Height="220" MinWidth="560" MinHeight="165"
+        WindowStartupLocation="CenterScreen"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         Topmost="True" ShowInTaskbar="True" ResizeMode="NoResize"
         MouseLeftButtonDown="Window_MouseLeftButtonDown"
