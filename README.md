@@ -51,7 +51,7 @@
 - 拖动空白区域移动窗口。
 - 拖动右下角的白色缩放手柄等比调整大小。
 - 右键面板可立即刷新或退出。
-- Codex 任务通过 `codex://threads/<id>` 打开 Codex Desktop。
+- 自动区分 Codex CLI 与桌面任务：CLI 任务在终端通过 `codex resume <id>` 恢复，桌面任务通过 `codex://threads/<id>` 打开 Codex Desktop。
 - Claude 任务通过 `claude --resume <session-id>` 在终端恢复。
 - 点击 Sol 卡片会更新 Codex 用户配置，新建 Codex CLI 任务也会使用新的模型和 effort。
 - Claude Model 与 Effort 卡片会更新 `~/.claude/settings.json`，供新建 Claude Code 会话使用。
@@ -86,7 +86,7 @@ xattr -dr com.apple.quarantine "/Applications/Vibe Float.app"
 - 支持 Apple Silicon 与 Intel Mac。
 - 已安装并登录 Codex CLI。
 - 若启用 Claude 模块，需要安装 Claude Code。
-- 点击任务跳转需要 Codex Desktop。
+- CLI 任务点击后需要本机可用的 Codex CLI；桌面任务点击跳转需要 Codex Desktop。
 
 ### Windows
 
@@ -95,7 +95,7 @@ xattr -dr com.apple.quarantine "/Applications/Vibe Float.app"
 - Windows 10 或 Windows 11 x64。
 - 发布包为 self-contained，不需要单独安装 .NET。
 - 已安装并登录 Codex CLI。
-- 点击任务跳转需要已注册 `codex://` 协议的 Codex Desktop。
+- CLI 任务会打开终端并恢复；桌面任务需要已注册 `codex://` 协议的 Codex Desktop。
 
 ## 🧠 工作原理
 

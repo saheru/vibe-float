@@ -5,7 +5,7 @@ let settings = {};
 
 const $ = id => document.getElementById(id);
 const hints = {
-  task: "按键显示最近任务状态；按下后通过 codex:// 深链接切换到该任务。",
+  task: "按键显示最近任务状态；自动区分 Codex CLI 与 APP，按下后在终端恢复 CLI 任务或切换到桌面任务。",
   model: "旋转直接切换模型；按住旋钮并旋转切换推理层级。按键模式下每按一次切换下一个模型。",
   permission: "旋转切换只读、工作区自动、完全访问。设置写入 Codex config.toml。",
   currentmodel: "屏幕显示当前 Codex 模型和推理层级；按一下切换到下一个模型。",

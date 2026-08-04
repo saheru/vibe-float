@@ -3,6 +3,7 @@ const { CodexClient, PERMISSIONS } = require("./codex-client");
 const { ClaudeClient } = require("./claude-client");
 const {
   taskCard,
+  codexTaskProvider,
   usageCard,
   modelCard,
   permissionCard,
@@ -146,7 +147,8 @@ function renderOne(context) {
   if (!item) return;
   let image;
   if (item.type === "task") {
-    image = taskCard(snapshot.threads[item.settings.slot || 0], item.settings.slot || 0, "CODEX");
+    const thread = snapshot.threads[item.settings.slot || 0];
+    image = taskCard(thread, item.settings.slot || 0, codexTaskProvider(thread));
   }
   if (item.type === "claudetask") {
     image = taskCard(snapshot.claude.threads[item.settings.slot || 0], item.settings.slot || 0, "CLAUDE");
@@ -231,7 +233,7 @@ plugin.task.keyUp = ({ context }) => {
   const slot = Number(plugin.task.data[context]?.slot || 0);
   const thread = snapshot.threads[slot];
   if (!thread) return plugin.showAlert(context);
-  openCodexThread(thread.id);
+  openCodexThread(thread);
   plugin.showOk(context);
 };
 
@@ -393,8 +395,12 @@ plugin.didReceiveGlobalSettings = ({ payload }) => {
 
 process.on("exit", () => codex.stop());
 
-function openCodexThread(threadId) {
-  const url = `codex://threads/${encodeURIComponent(threadId)}`;
+function openCodexThread(thread) {
+  if (String(thread?.source || "").toLowerCase() === "cli") {
+    openCodexCliThread(thread);
+    return;
+  }
+  const url = `codex://threads/${encodeURIComponent(thread.id)}`;
   try {
     if (process.platform === "darwin") {
       spawn("open", [url], { detached: true, stdio: "ignore" }).unref();
@@ -407,6 +413,30 @@ function openCodexThread(threadId) {
     spawn("xdg-open", [url], { detached: true, stdio: "ignore" }).unref();
   } catch {
     plugin.openUrl(url);
+  }
+}
+
+function openCodexCliThread(thread) {
+  const cwd = thread.cwd || process.env.HOME || process.env.USERPROFILE || ".";
+  const changeDirectory = process.platform === "win32" ? `cd /d ${shellQuote(cwd)}` : `cd ${shellQuote(cwd)}`;
+  const command = `${changeDirectory} && ${shellQuote(codex.codexPath || "codex")} resume ${shellQuote(thread.id)}`;
+  try {
+    if (process.platform === "darwin") {
+      const script = `tell application "Terminal" to do script "${appleScriptText(command)}"`;
+      spawn("/usr/bin/osascript", ["-e", script], { detached: true, stdio: "ignore" }).unref();
+      return;
+    }
+    if (process.platform === "win32") {
+      spawn("cmd.exe", ["/d", "/s", "/c", "start", "Codex CLI", "cmd.exe", "/k", command], {
+        detached: true,
+        stdio: "ignore",
+        windowsHide: true
+      }).unref();
+      return;
+    }
+    spawn("x-terminal-emulator", ["-e", command], { detached: true, stdio: "ignore" }).unref();
+  } catch (error) {
+    log.error("open Codex CLI task", error);
   }
 }
 

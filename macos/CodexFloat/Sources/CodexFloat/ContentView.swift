@@ -158,7 +158,7 @@ private struct TaskTile: View {
                         .padding(8)
                 }
                 .overlay(alignment: .topLeading) {
-                    Text(task.provider.displayName.uppercased())
+                    Text(task.sourceDisplayName)
                         .font(.system(size: 8, weight: .black, design: .rounded))
                         .foregroundStyle(.white)
                         .padding(.horizontal, 7)

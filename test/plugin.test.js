@@ -20,6 +20,7 @@ const {
 } = require("../com.tlm.codex-control.sdPlugin/plugin/claude-client");
 const {
   taskCard,
+  codexTaskProvider,
   usageCard,
   modelCard,
   permissionCard,
@@ -277,6 +278,19 @@ test("all visual cards are valid encoded SVG data URLs", () => {
     assert.match(card, /^data:image\/svg\+xml;charset=utf8,/);
     assert.match(decodeURIComponent(card.split(",")[1]), /<svg/);
   }
+});
+
+test("task cards distinguish Codex CLI and desktop origins", () => {
+  const thread = {
+    cwd: "/tmp/project",
+    displayStatus: { type: "active" }
+  };
+  assert.equal(codexTaskProvider({ source: "cli" }), "CODEX CLI");
+  assert.equal(codexTaskProvider({ source: "vscode" }), "CODEX APP");
+  const cliSvg = decodeURIComponent(taskCard({ ...thread, source: "cli" }, 0, codexTaskProvider({ source: "cli" })).split(",")[1]);
+  const appSvg = decodeURIComponent(taskCard({ ...thread, source: "vscode" }, 0, codexTaskProvider({ source: "vscode" })).split(",")[1]);
+  assert.match(cliSvg, /CODEX CLI/);
+  assert.match(appSvg, /CODEX APP/);
 });
 
 test("Claude client scans CLI sessions and persists model and effort", () => {

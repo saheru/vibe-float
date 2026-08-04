@@ -173,10 +173,11 @@ public partial class MainWindow : Window
                 var cwd = String(thread, "cwd");
                 var title = String(thread, "name");
                 if (string.IsNullOrEmpty(title)) title = String(thread, "preview");
+                var source = String(thread, "source");
                 var updated = Number(thread, "updatedAt") is { } seconds
                     ? DateTimeOffset.FromUnixTimeSeconds((long)seconds).UtcDateTime
                     : DateTime.UtcNow;
-                _codexTasks.Add(new VibeTask(id, title, cwd, InferState(thread), TaskProvider.Codex, updated));
+                _codexTasks.Add(new VibeTask(id, title, cwd, InferState(thread), TaskProvider.Codex, updated, source));
                 if (_codexTasks.Count == 16) break;
             }
         }
@@ -451,6 +452,20 @@ public partial class MainWindow : Window
         var task = _tasks[index];
         if (task.Provider == TaskProvider.Codex)
         {
+            if (string.Equals(task.CodexSource, "cli", StringComparison.OrdinalIgnoreCase))
+            {
+                var cwd = string.IsNullOrWhiteSpace(task.Cwd)
+                    ? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)
+                    : task.Cwd;
+                var codex = CodexClient.FindCodex();
+                Process.Start(new ProcessStartInfo("cmd.exe",
+                    $"/d /s /c start \"Codex CLI\" cmd.exe /k \"cd /d \\\"{cwd}\\\" && \\\"{codex}\\\" resume \\\"{task.Id}\\\"\"")
+                {
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                });
+                return;
+            }
             Process.Start(new ProcessStartInfo($"codex://threads/{Uri.EscapeDataString(task.Id)}")
             {
                 UseShellExecute = true
@@ -496,10 +511,13 @@ public partial class MainWindow : Window
         icon.Text = glyph; icon.Foreground = brush;
         ring.BorderBrush = brush; ring.Background = Brush($"20{color[1..]}");
         status.Text = label;
-        var provider = task.Provider == TaskProvider.Claude ? "CLAUDE" : "CODEX";
+        var provider = task.Provider == TaskProvider.Claude ? "CLAUDE" :
+            string.Equals(task.CodexSource, "cli", StringComparison.OrdinalIgnoreCase) ? "CLI" : "APP";
         var providerColor = task.Provider == TaskProvider.Claude ? Brush("#F08C51") : Brush("#35A7FF");
         project.Text = $"{provider}·{ProjectCode(task.Cwd, provider)}"; project.Foreground = providerColor;
-        button.ToolTip = $"[{(task.Provider == TaskProvider.Claude ? "Claude" : "Codex")}] {task.Title}";
+        var sourceName = task.Provider == TaskProvider.Claude ? "Claude" :
+            string.Equals(task.CodexSource, "cli", StringComparison.OrdinalIgnoreCase) ? "Codex CLI" : "Codex App";
+        button.ToolTip = $"[{sourceName}] {task.Title}";
     }
 
     private void RenderEffort()

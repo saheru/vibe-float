@@ -34,7 +34,7 @@ All task and usage data stays on your computer. Codex data comes from the local 
 
 | Module | What it shows | Action |
 |---|---|---|
-| Recent Tasks 1–8 | A configurable number of the most recently updated Codex or Claude sessions | Open Codex Desktop or resume Claude in Terminal |
+| Recent Tasks 1–8 | A configurable number of the most recently updated Codex or Claude sessions | Resume Codex/Claude CLI in Terminal or open Codex Desktop |
 | Codex · Sol Effort | The current Sol reasoning effort with level-specific colors | Click to cycle the effort |
 | Codex · 5h Usage | Live five-hour usage with a threshold-colored progress ring | Refreshes automatically |
 | Codex · Weekly Usage | Live weekly usage with a threshold-colored progress ring | Refreshes automatically |
@@ -47,10 +47,10 @@ Choose from 1–8 recent task cards and enable any combination of the remaining 
 ## Automatic task detection
 
 - Codex and Claude sessions are merged by their real last-updated time.
-- A blue **CODEX** badge and `CODEX·PROJECT` label identify Codex tasks.
+- Blue **CODEX CLI** / **CODEX APP** badges and `CLI·PROJECT` / `APP·PROJECT` labels distinguish Codex task origins.
 - An orange **CLAUDE** badge and `CLAUDE·PROJECT` label identify Claude tasks.
 - State colors remain independent: running, waiting for input, completed, or failed.
-- Codex tasks open through `codex://threads/<id>`.
+- Codex CLI and desktop tasks are detected automatically: CLI tasks resume in a terminal with `codex resume <id>`, while desktop tasks open through `codex://threads/<id>`.
 - Claude tasks open a terminal and run `claude --resume <session-id>`.
 
 If the Codex child process exits, Vibe Float automatically reconnects every two seconds. Claude tasks remain available while Codex reconnects.

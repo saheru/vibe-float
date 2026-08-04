@@ -89,7 +89,7 @@ final class CodexService: ObservableObject {
                 "clientInfo": [
                     "name": "vibe_float",
                     "title": "Vibe Float",
-                    "version": "0.5.0"
+                    "version": "0.5.2"
                 ],
                 "capabilities": ["experimentalApi": true]
             ]) { [weak self] result in
@@ -136,6 +136,16 @@ final class CodexService: ObservableObject {
     func openTask(_ task: VibeTask) {
         switch task.provider {
         case .codex:
+            if task.codexSurface == .cli {
+                let cwd = task.cwd.isEmpty ? FileManager.default.homeDirectoryForCurrentUser.path : task.cwd
+                let executable = (try? findCodex()) ?? "codex"
+                let command = "cd \(shellQuote(cwd)) && \(shellQuote(executable)) resume \(shellQuote(task.id))"
+                let escaped = command
+                    .replacingOccurrences(of: "\\", with: "\\\\")
+                    .replacingOccurrences(of: "\"", with: "\\\"")
+                NSAppleScript(source: "tell application \"Terminal\" to do script \"\(escaped)\"")?.executeAndReturnError(nil)
+                return
+            }
             guard let encoded = task.id.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed),
                   let url = URL(string: "codex://threads/\(encoded)") else { return }
             NSWorkspace.shared.open(url)
@@ -320,13 +330,15 @@ final class CodexService: ObservableObject {
                 guard let id = item["id"] as? String else { return nil }
                 let title = item["name"] as? String ?? item["preview"] as? String ?? "未命名任务"
                 let cwd = item["cwd"] as? String ?? ""
+                let surface = CodexSurface(source: item["source"] as? String ?? "")
                 return VibeTask(
                     id: id,
                     title: title,
                     cwd: cwd,
                     state: inferState(item),
                     provider: .codex,
-                    updatedAt: Date(timeIntervalSince1970: Self.number(item["updatedAt"]) ?? 0)
+                    updatedAt: Date(timeIntervalSince1970: Self.number(item["updatedAt"]) ?? 0),
+                    codexSurface: surface
                 )
             }
         mergeTasks()

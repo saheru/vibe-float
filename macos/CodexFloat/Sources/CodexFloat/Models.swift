@@ -27,6 +27,18 @@ enum TaskProvider: String {
     }
 }
 
+enum CodexSurface: String {
+    case cli
+    case app
+
+    init(source: String) {
+        self = source.lowercased() == "cli" ? .cli : .app
+    }
+
+    var displayName: String { self == .cli ? "CODEX CLI" : "CODEX APP" }
+    var shortName: String { self == .cli ? "CLI" : "APP" }
+}
+
 enum TaskState: String {
     case active
     case idle
@@ -72,6 +84,7 @@ struct VibeTask: Identifiable {
     let state: TaskState
     let provider: TaskProvider
     let updatedAt: Date
+    var codexSurface: CodexSurface? = nil
 
     var projectCode: String {
         let name = URL(fileURLWithPath: cwd).lastPathComponent
@@ -80,7 +93,15 @@ struct VibeTask: Identifiable {
     }
 
     var sourceProjectLabel: String {
-        "\(provider.displayName.uppercased())·\(projectCode)"
+        if provider == .codex, let codexSurface {
+            return "\(codexSurface.shortName)·\(projectCode)"
+        }
+        return "\(provider.displayName.uppercased())·\(projectCode)"
+    }
+
+    var sourceDisplayName: String {
+        if provider == .codex { return codexSurface?.displayName ?? "CODEX APP" }
+        return provider.displayName.uppercased()
     }
 }
 

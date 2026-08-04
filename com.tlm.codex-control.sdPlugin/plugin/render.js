@@ -42,9 +42,15 @@ function projectName(thread) {
   return Array.from(name).slice(0, 4).join("").toUpperCase();
 }
 
+function codexTaskProvider(thread) {
+  return String(thread?.source || "").toLowerCase() === "cli" ? "CODEX CLI" : "CODEX APP";
+}
+
 function taskCard(thread, slot, provider = "CODEX") {
   const providerName = String(provider || "CODEX").toUpperCase();
   const providerColor = providerName === "CLAUDE" ? "#f08c51" : "#35a7ff";
+  const providerWidth = Math.max(42, Math.min(64, 18 + providerName.length * 5));
+  const providerCenter = 10 + providerWidth / 2;
   if (!thread) {
     return svgData(shell(`
       <text x="16" y="27" fill="${providerColor}" font-size="10" font-weight="900" font-family="Arial">${providerName}</text>
@@ -65,8 +71,8 @@ function taskCard(thread, slot, provider = "CODEX") {
     thread.displayStatus?.type === "systemError" ? "错误" : "等待";
   const project = projectName(thread);
   return svgData(shell(`
-    <rect x="10" y="10" width="${providerName === "CLAUDE" ? 49 : 42}" height="17" rx="8.5" fill="${providerColor}"/>
-    <text x="${providerName === "CLAUDE" ? 34.5 : 31}" y="22" text-anchor="middle" fill="#ffffff" font-size="8" font-weight="900" font-family="Arial">${providerName}</text>
+    <rect x="10" y="10" width="${providerWidth}" height="17" rx="8.5" fill="${providerColor}"/>
+    <text x="${providerCenter}" y="22" text-anchor="middle" fill="#ffffff" font-size="${providerName.length > 7 ? 7 : 8}" font-weight="900" font-family="Arial">${providerName}</text>
     <circle cx="72" cy="52" r="27" fill="${status.color}" opacity=".16" stroke="${status.color}" stroke-width="4" filter="url(#glow)"/>
     <text x="72" y="64" text-anchor="middle" fill="${status.color}" font-size="33" font-weight="800" font-family="Arial">${icon}</text>
     <text x="72" y="101" text-anchor="middle" fill="#ffffff" font-size="23" font-weight="900" font-family="Arial">${label}</text>
@@ -157,6 +163,7 @@ function formatReset(epochSeconds) {
 
 module.exports = {
   taskCard,
+  codexTaskProvider,
   usageCard,
   modelCard,
   permissionCard,

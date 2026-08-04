@@ -39,7 +39,7 @@ internal sealed class CodexClient : IAsyncDisposable
 
         await RequestAsync("initialize", new
         {
-            clientInfo = new { name = "vibe_float_windows", title = "Vibe Float", version = "0.5.0" },
+            clientInfo = new { name = "vibe_float_windows", title = "Vibe Float", version = "0.5.2" },
             capabilities = new { experimentalApi = true }
         });
         await NotifyAsync("initialized", new { });
@@ -107,7 +107,7 @@ internal sealed class CodexClient : IAsyncDisposable
         _pending.Clear();
     }
 
-    private static string FindCodex()
+    internal static string FindCodex()
     {
         var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);

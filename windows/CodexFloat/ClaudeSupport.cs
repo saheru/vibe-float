@@ -12,7 +12,8 @@ internal sealed record VibeTask(
     string Cwd,
     TaskState State,
     TaskProvider Provider,
-    DateTime UpdatedAt);
+    DateTime UpdatedAt,
+    string CodexSource = "");
 
 internal static class ClaudeSupport
 {

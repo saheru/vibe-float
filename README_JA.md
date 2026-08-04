@@ -34,7 +34,7 @@ Vibe Float は、**macOS 向け SwiftUI アプリ**と**Windows 向け WPF ア�
 
 | モジュール | 表示内容 | 操作 |
 |---|---|---|
-| 最近のタスク 1～8 | 表示数を設定できる、更新日時が新しい Codex / Claude セッション | Codex Desktop を開く、または Claude をターミナルで再開 |
+| 最近のタスク 1～8 | 表示数を設定できる、更新日時が新しい Codex / Claude セッション | Codex/Claude CLI をターミナルで再開、または Codex Desktop を開く |
 | Codex · Sol Effort | 現在の Sol 推論強度をレベル別の色で表示 | クリックして切り替え |
 | Codex · 5h Usage | 5 時間制限をしきい値で色が変わる進捗リングで表示 | 自動更新 |
 | Codex · 週間 Usage | しきい値で色が変わる進捗リング | 自動更新 |
@@ -50,7 +50,7 @@ Vibe Float は、**macOS 向け SwiftUI アプリ**と**Windows 向け WPF ア�
 - Codex は青い **CODEX** バッジと `CODEX·PROJECT` で表示します。
 - Claude はオレンジ色の **CLAUDE** バッジと `CLAUDE·PROJECT` で表示します。
 - 実行中、入力待ち、完了、エラーの状態色はタスク種別と独立しています。
-- Codex タスクは `codex://threads/<id>` で開きます。
+- Codex CLI とデスクトップのタスクを自動判別します。CLI タスクはターミナルで `codex resume <id>` を実行し、デスクトップのタスクは `codex://threads/<id>` で開きます。
 - Claude タスクはターミナルで `claude --resume <session-id>` を実行します。
 
 Codex の子プロセスが終了した場合は 2 秒ごとに自動再接続します。再接続中も Claude タスクは引き続き表示されます。
