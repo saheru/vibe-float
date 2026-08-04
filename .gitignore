@@ -1,6 +1,8 @@
 .DS_Store
 node_modules/
 dist/
+artifacts/
+.tools/
 *.log
 *.tmp
 
@@ -14,6 +16,8 @@ dist/
 
 macos/CodexFloat/.build/
 macos/CodexFloat/.build-x86/
+**/bin/
+**/obj/
 
 *.backup.*
 *.old.*

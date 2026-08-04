@@ -23,6 +23,8 @@ internal sealed class CodexClient : IAsyncDisposable
 
     public bool UsesSharedServer => _socket?.State == WebSocketState.Open;
 
+    internal bool IsRunning => UsesSharedServer || _fallbackProcess is { HasExited: false };
+
     public async Task StartAsync()
     {
         if (UsesSharedServer || _fallbackProcess is { HasExited: false }) return;
@@ -80,7 +82,10 @@ internal sealed class CodexClient : IAsyncDisposable
         _ = Task.Run(ReadStdioLoopAsync);
         _ = Task.Run(async () =>
         {
-            while (await _fallbackProcess.StandardError.ReadLineAsync() is not null) { }
+            while (await _fallbackProcess.StandardError.ReadLineAsync() is { } line)
+            {
+                StartupDiagnostics.Write($"Codex stderr: {line}");
+            }
         });
         await InitializeAsync();
     }
@@ -89,7 +94,12 @@ internal sealed class CodexClient : IAsyncDisposable
     {
         await RequestAsync("initialize", new
         {
-            clientInfo = new { name = "vibe_float_windows", title = "Vibe Float", version = "0.5.8" },
+            clientInfo = new
+            {
+                name = "vibe_float_windows",
+                title = "Vibe Float",
+                version = typeof(CodexClient).Assembly.GetName().Version?.ToString(3) ?? "unknown"
+            },
             capabilities = new { experimentalApi = true, requestAttestation = false }
         });
         await NotifyAsync("initialized", new { });

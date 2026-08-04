@@ -6,6 +6,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
+using Forms = System.Windows.Forms;
 
 namespace CodexFloat;
 
@@ -31,6 +32,7 @@ public partial class MainWindow : Window
     private bool _refreshingTasks;
     private bool _refreshingMetadata;
     private bool _refreshingClaude;
+    private bool _reconnectingCodex;
     private HashSet<string> _enabledModules = [];
     private int _taskCount = 3;
     private static readonly PermissionChoice[] Permissions =
@@ -39,12 +41,23 @@ public partial class MainWindow : Window
         new("AUTO", "workspace-write", "on-request", "workspaceWrite"),
         new("FULL", "danger-full-access", "never", "dangerFullAccess")
     ];
+    private Forms.NotifyIcon? _trayIcon;
+    private Forms.ContextMenuStrip? _trayMenu;
+    private System.Drawing.Icon? _trayIconImage;
 
-    public MainWindow()
+    public MainWindow() : this(startServices: true)
+    {
+    }
+
+    internal MainWindow(bool startServices)
     {
         InitializeComponent();
-        Loaded += async (_, _) => await StartAsync();
-        _taskTimer.Tick += async (_, _) => await RefreshTasksAsync();
+        if (startServices)
+        {
+            Loaded += async (_, _) => await StartAsync();
+            InitializeTrayIcon();
+        }
+        _taskTimer.Tick += async (_, _) => await RefreshOrReconnectCodexAsync();
         _claudeTimer.Tick += async (_, _) => await RefreshClaudeAsync();
         _metadataTimer.Tick += async (_, _) => await RefreshMetadataAsync();
         LoadModuleSettings();
@@ -61,6 +74,7 @@ public partial class MainWindow : Window
 
     private async Task StartAsync()
     {
+        _reconnectingCodex = true;
         _taskTimer.Start();
         _claudeTimer.Start();
         _metadataTimer.Start();
@@ -69,8 +83,9 @@ public partial class MainWindow : Window
             await RefreshClaudeAsync();
             await _codex.StartAsync();
             _codexConnected = true;
-            await RefreshAsync();
             StartupDiagnostics.Write("Codex app-server connected");
+            await RefreshTasksAsync();
+            await RefreshMetadataAsync();
         }
         catch (Exception error)
         {
@@ -80,11 +95,44 @@ public partial class MainWindow : Window
             MergeTasks();
             StartupDiagnostics.Write("Started without Codex connection", error);
         }
+        finally
+        {
+            _reconnectingCodex = false;
+        }
     }
 
     private async Task RefreshAsync()
     {
         await Task.WhenAll(RefreshTasksAsync(), RefreshMetadataAsync());
+    }
+
+    private async Task RefreshOrReconnectCodexAsync()
+    {
+        if (_reconnectingCodex) return;
+        if (_codexConnected)
+        {
+            await RefreshTasksAsync();
+            return;
+        }
+        _reconnectingCodex = true;
+        try
+        {
+            await _codex.StartAsync();
+            _codexConnected = true;
+            StartupDiagnostics.Write("Codex app-server reconnected");
+            await RefreshTasksAsync();
+            await RefreshMetadataAsync();
+        }
+        catch (Exception error)
+        {
+            _codexConnected = _codex.IsRunning;
+            Title = $"Vibe Float — Codex: {error.Message}";
+            StartupDiagnostics.Write("Codex reconnect failed", error);
+        }
+        finally
+        {
+            _reconnectingCodex = false;
+        }
     }
 
     private async Task RefreshTasksAsync()
@@ -107,7 +155,9 @@ public partial class MainWindow : Window
         }
         catch (Exception error)
         {
+            _codexConnected = _codex.IsRunning;
             Title = $"Vibe Float — Codex: {error.Message}";
+            StartupDiagnostics.Write("Codex task refresh failed", error);
         }
         finally
         {
@@ -132,7 +182,9 @@ public partial class MainWindow : Window
         }
         catch (Exception error)
         {
+            _codexConnected = _codex.IsRunning;
             Title = $"Vibe Float — Codex: {error.Message}";
+            StartupDiagnostics.Write("Codex metadata refresh failed", error);
         }
         finally
         {
@@ -143,13 +195,16 @@ public partial class MainWindow : Window
     private void ApplyModels(JsonElement modelResult, JsonElement configResult)
     {
         _models.Clear();
-        if (modelResult.TryGetProperty("data", out var models))
+        if (modelResult.ValueKind == JsonValueKind.Object &&
+            modelResult.TryGetProperty("data", out var models) &&
+            models.ValueKind == JsonValueKind.Array)
         {
             foreach (var model in models.EnumerateArray())
             {
                 var id = String(model, "model");
                 var display = String(model, "displayName");
-                var efforts = model.TryGetProperty("supportedReasoningEfforts", out var advertised)
+                var efforts = model.TryGetProperty("supportedReasoningEfforts", out var advertised) &&
+                    advertised.ValueKind == JsonValueKind.Array
                     ? advertised.EnumerateArray().Select(item => String(item, "reasoningEffort"))
                         .Where(value => !string.IsNullOrEmpty(value)).ToList()
                     : [];
@@ -161,7 +216,8 @@ public partial class MainWindow : Window
                 }
             }
         }
-        if (configResult.TryGetProperty("config", out var config))
+        if (configResult.ValueKind == JsonValueKind.Object &&
+            configResult.TryGetProperty("config", out var config))
         {
             _currentModel = String(config, "model");
             if (string.IsNullOrEmpty(_currentModel)) _currentModel = _models.FirstOrDefault()?.Id;
@@ -178,7 +234,9 @@ public partial class MainWindow : Window
     private void ApplyThreads(JsonElement result)
     {
         _codexTasks.Clear();
-        if (result.TryGetProperty("data", out var data))
+        if (result.ValueKind == JsonValueKind.Object &&
+            result.TryGetProperty("data", out var data) &&
+            data.ValueKind == JsonValueKind.Array)
         {
             foreach (var thread in data.EnumerateArray())
             {
@@ -268,7 +326,7 @@ public partial class MainWindow : Window
         ClaudeEffortText.Text = _claudeEffort.ToUpperInvariant();
         ClaudeEffortText.Foreground = Brush(color);
         ClaudeEffortPill.BorderBrush = Brush(color);
-        ClaudeEffortPill.Background = Brush($"20{color[1..]}");
+        ClaudeEffortPill.Background = Brush($"#20{color[1..]}");
     }
 
     private static string ShortClaudeModel(string model)
@@ -420,10 +478,12 @@ public partial class MainWindow : Window
         var rows = (int)Math.Ceiling(count / (double)columns);
         ModuleGrid.Columns = columns;
         ModuleGrid.Rows = rows;
+        ModuleGrid.Width = columns * 150;
+        ModuleGrid.Height = rows * 180;
         if (resize)
         {
-            Width = Math.Max(300, columns * 150 + 32);
-            Height = Math.Max(175, rows * 180 + 32);
+            Width = Math.Max(MinWidth, ModuleGrid.Width + 32);
+            Height = Math.Max(MinHeight, ModuleGrid.Height + 32);
         }
     }
 
@@ -602,7 +662,7 @@ public partial class MainWindow : Window
         };
         var brush = Brush(color);
         icon.Text = glyph; icon.Foreground = brush;
-        ring.BorderBrush = brush; ring.Background = Brush($"20{color[1..]}");
+        ring.BorderBrush = brush; ring.Background = Brush($"#20{color[1..]}");
         status.Text = label;
         var provider = task.Provider == TaskProvider.Claude ? "CLAUDE" :
             string.Equals(task.CodexSource, "cli", StringComparison.OrdinalIgnoreCase) ? "CLI" : "APP";
@@ -629,7 +689,7 @@ public partial class MainWindow : Window
         EffortText.Text = _effort.ToUpperInvariant();
         EffortText.Foreground = Brush(color);
         EffortPill.BorderBrush = Brush(color);
-        EffortPill.Background = Brush($"20{color[1..]}");
+        EffortPill.Background = Brush($"#20{color[1..]}");
     }
 
     private void RenderCodexControls()
@@ -646,7 +706,7 @@ public partial class MainWindow : Window
         CodexPermissionText.Text = permission.Short;
         CodexPermissionText.Foreground = Brush(color);
         CodexPermissionPill.BorderBrush = Brush(color);
-        CodexPermissionPill.Background = Brush($"20{color[1..]}");
+        CodexPermissionPill.Background = Brush($"#20{color[1..]}");
     }
 
     private static string ShortCodexModel(string model)
@@ -688,6 +748,7 @@ public partial class MainWindow : Window
 
     private static double? ExtractWindow(JsonElement result, double targetMinutes, Func<double, bool> accepts)
     {
+        if (result.ValueKind != JsonValueKind.Object) return null;
         var snapshots = new List<JsonElement>();
         if (result.TryGetProperty("rateLimits", out var canonical)) snapshots.Add(canonical);
         if (result.TryGetProperty("rateLimitsByLimitId", out var byId))
@@ -708,6 +769,7 @@ public partial class MainWindow : Window
         element.ValueKind == JsonValueKind.Object && element.TryGetProperty(name, out var value) ? value : null;
 
     private static double? Number(JsonElement element, string name) =>
+        element.ValueKind == JsonValueKind.Object &&
         element.TryGetProperty(name, out var value) && value.TryGetDouble(out var number) ? number : null;
 
     private static string String(JsonElement element, string name) =>
@@ -762,10 +824,69 @@ public partial class MainWindow : Window
         Height = Math.Max(MinHeight, Height + e.VerticalChange);
     }
 
+    private void InitializeTrayIcon()
+    {
+        _trayIconImage = Environment.ProcessPath is { } executable
+            ? System.Drawing.Icon.ExtractAssociatedIcon(executable)
+            : (System.Drawing.Icon)System.Drawing.SystemIcons.Application.Clone();
+        _trayMenu = new Forms.ContextMenuStrip();
+        _trayMenu.Items.Add("显示 / 隐藏面板", null, (_, _) =>
+            Dispatcher.BeginInvoke(new Action(ToggleWindowVisibility)));
+        _trayMenu.Items.Add("设置...", null, (_, _) =>
+            Dispatcher.BeginInvoke(new Action(OpenConfigurationMenu)));
+        _trayMenu.Items.Add("立即刷新", null, (_, _) =>
+            Dispatcher.BeginInvoke(new Action(async () =>
+            {
+                await RefreshClaudeAsync();
+                await RefreshOrReconnectCodexAsync();
+            })));
+        _trayMenu.Items.Add(new Forms.ToolStripSeparator());
+        _trayMenu.Items.Add("退出 Vibe Float", null, (_, _) =>
+            Dispatcher.BeginInvoke(new Action(Close)));
+
+        _trayIcon = new Forms.NotifyIcon
+        {
+            Icon = _trayIconImage,
+            Text = "Vibe Float",
+            ContextMenuStrip = _trayMenu,
+            Visible = true
+        };
+        _trayIcon.DoubleClick += (_, _) =>
+            Dispatcher.BeginInvoke(new Action(ToggleWindowVisibility));
+    }
+
+    private void ToggleWindowVisibility()
+    {
+        if (IsVisible)
+        {
+            Hide();
+            return;
+        }
+        Show();
+        Activate();
+    }
+
+    private void OpenConfigurationMenu()
+    {
+        if (!IsVisible) Show();
+        Activate();
+        if (PanelRoot.ContextMenu is not { } menu) return;
+        menu.PlacementTarget = PanelRoot;
+        menu.Placement = System.Windows.Controls.Primitives.PlacementMode.MousePoint;
+        menu.IsOpen = true;
+    }
+
     private async void Refresh_Click(object sender, RoutedEventArgs e) => await RefreshAsync();
     private void Exit_Click(object sender, RoutedEventArgs e) => Close();
     private async void Window_Closed(object? sender, EventArgs e)
     {
+        if (_trayIcon is not null)
+        {
+            _trayIcon.Visible = false;
+            _trayIcon.Dispose();
+        }
+        _trayMenu?.Dispose();
+        _trayIconImage?.Dispose();
         _taskTimer.Stop();
         _claudeTimer.Stop();
         _metadataTimer.Stop();

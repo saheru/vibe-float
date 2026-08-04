@@ -5,10 +5,11 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
         Title="Vibe Float"
-        Width="800" Height="220" MinWidth="560" MinHeight="165"
+        Width="800" Height="220" MinWidth="300" MinHeight="130"
         WindowStartupLocation="CenterScreen"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         Topmost="True" ShowInTaskbar="True" ResizeMode="NoResize"
+        UseLayoutRounding="True" SnapsToDevicePixels="True"
         MouseLeftButtonDown="Window_MouseLeftButtonDown"
         Closed="Window_Closed">
   <Window.Resources>
@@ -82,7 +83,8 @@
     </Border.ContextMenu>
 
     <Grid>
-      <UniformGrid x:Name="ModuleGrid" Rows="1" Columns="5">
+      <Viewbox x:Name="ModuleViewbox" Stretch="Uniform" StretchDirection="Both">
+      <UniformGrid x:Name="ModuleGrid" Rows="1" Columns="5" Width="750" Height="180">
         <Button x:Name="TaskButton0" Tag="0" Style="{StaticResource TileButton}" Click="Task_Click">
           <StackPanel>
             <Border x:Name="TaskIconRing0" Width="58" Height="58" CornerRadius="29" BorderThickness="4">
@@ -246,6 +248,7 @@
           </StackPanel>
         </Button>
       </UniformGrid>
+      </Viewbox>
 
       <Thumb x:Name="ResizeThumb" Width="28" Height="28" HorizontalAlignment="Right" VerticalAlignment="Bottom"
              Cursor="SizeNWSE" DragDelta="ResizeThumb_DragDelta">
