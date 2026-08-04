@@ -127,8 +127,8 @@ class CodexClient {
 
   async initialize() {
     await this.request("initialize", {
-      clientInfo: { name: "streamdock_vibe_control", title: "StreamDock Vibe Control", version: "0.8.6" },
-      capabilities: { experimentalApi: true }
+      clientInfo: { name: "streamdock_vibe_control", title: "StreamDock Vibe Control", version: "0.8.7" },
+      capabilities: { experimentalApi: true, requestAttestation: false }
     });
     this.notify("initialized", {});
     this.ready = true;

@@ -4,6 +4,12 @@
 
 本文件记录 Vibe Float 桌面应用与 StreamDock Vibe Control 插件的重要更新。
 
+## [0.5.7] - 2026-08-04
+
+### 修复
+
+- 兼容 Codex CLI 0.146.0 新增的 App Server 初始化能力字段，并让 macOS 使用 WebSocket 文本帧发送 JSON-RPC；修复三端连接异常，以及 macOS 最近任务只显示 Claude、Codex 控件离线的问题。
+
 ## [0.5.6] - 2026-08-04
 
 ### 新增

@@ -60,6 +60,8 @@ test("manifest defines task, knobs, current-state buttons and usage actions", ()
 });
 
 test("desktop apps expose shared CLI model and permission controls", () => {
+  const pluginClient = fs.readFileSync(path.join(__dirname,
+    "../com.tlm.codex-control.sdPlugin/plugin/codex-client.js"), "utf8");
   const swiftService = fs.readFileSync(path.join(__dirname,
     "../macos/CodexFloat/Sources/CodexFloat/CodexService.swift"), "utf8");
   const swiftModules = fs.readFileSync(path.join(__dirname,
@@ -71,9 +73,13 @@ test("desktop apps expose shared CLI model and permission controls", () => {
 
   assert.match(swiftService, /thread\/settings\/update/);
   assert.match(swiftService, /--remote/);
+  assert.match(swiftService, /"requestAttestation": false/);
+  assert.match(swiftService, /socket\.send\(\.string\(text\)\)/);
   assert.match(swiftModules, /case codexModel/);
   assert.match(swiftModules, /case codexPermission/);
+  assert.match(pluginClient, /requestAttestation: false/);
   assert.match(windowsClient, /ClientWebSocket/);
+  assert.match(windowsClient, /requestAttestation = false/);
   assert.match(windowsView, /CodexModelButton/);
   assert.match(windowsView, /CodexPermissionButton/);
 });

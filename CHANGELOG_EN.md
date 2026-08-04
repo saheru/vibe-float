@@ -4,6 +4,12 @@
 
 This file records notable changes to the Vibe Float desktop apps and the StreamDock Vibe Control plugin.
 
+## [0.5.7] - 2026-08-04
+
+### Fixed
+
+- Added the App Server initialization capability required by Codex CLI 0.146.0 and changed macOS JSON-RPC transport to WebSocket text frames, fixing connection failures and the macOS recent-task area showing only Claude while Codex controls stayed offline.
+
 ## [0.5.6] - 2026-08-04
 
 ### Added

@@ -1,6 +1,6 @@
 {
   "name": "streamdock-vibe-control",
-  "version": "0.8.6",
+  "version": "0.8.7",
   "private": true,
   "main": "index.js",
   "engines": { "node": ">=20" },

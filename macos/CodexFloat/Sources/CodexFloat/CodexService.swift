@@ -112,9 +112,9 @@ final class CodexService: ObservableObject {
             "clientInfo": [
                 "name": "vibe_float",
                 "title": "Vibe Float",
-                "version": "0.5.6"
+                "version": "0.5.7"
             ],
-            "capabilities": ["experimentalApi": true]
+            "capabilities": ["experimentalApi": true, "requestAttestation": false]
         ])
         notify("initialized", params: [:])
         finishConnectedStart()
@@ -168,9 +168,9 @@ final class CodexService: ObservableObject {
                 "clientInfo": [
                     "name": "vibe_float",
                     "title": "Vibe Float",
-                    "version": "0.5.6"
+                    "version": "0.5.7"
                 ],
-                "capabilities": ["experimentalApi": true]
+                "capabilities": ["experimentalApi": true, "requestAttestation": false]
             ]) { [weak self] result in
                 guard let self else { return }
                 if case .failure(let error) = result {
@@ -723,9 +723,12 @@ final class CodexService: ObservableObject {
     private func send(_ object: [String: Any]) {
         guard let data = try? JSONSerialization.data(withJSONObject: object) else { return }
         if let socket = webSocket {
+            let text = String(decoding: data, as: UTF8.self)
             Task {
                 do {
-                    try await socket.send(.data(data))
+                    // Codex app-server expects JSON-RPC in WebSocket text
+                    // frames. Binary frames remain open but are not decoded.
+                    try await socket.send(.string(text))
                 } catch {
                     await MainActor.run { self.handleWebSocketFailure(error, socket: socket) }
                 }
