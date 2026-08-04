@@ -4,11 +4,19 @@ const os = require("node:os");
 const path = require("node:path");
 
 const TERMINALS = ["auto", "otty", "terminal", "iterm2", "ghostty", "kitty", "wezterm"];
+const recentLaunches = new Map();
 
 function openAgentSession({ id, provider, cwd, command, preference = "auto", log }) {
   if (process.platform === "darwin") {
-    if (focusOttySession(id, provider)) return true;
+    if (focusOttySession(id, provider, cwd)) return true;
     const terminal = preference === "auto" ? detectMacTerminal() : preference;
+    const launchKey = `${provider}:${id}`;
+    const previousLaunch = recentLaunches.get(launchKey) || 0;
+    if (Date.now() - previousLaunch < 8000) {
+      activateMacTerminal(terminal);
+      return true;
+    }
+    recentLaunches.set(launchKey, Date.now());
     return launchMac(command, cwd, terminal, log) || launchMac(command, cwd, "terminal", log);
   }
   if (process.platform === "win32") {
@@ -21,7 +29,16 @@ function openAgentSession({ id, provider, cwd, command, preference = "auto", log
   return true;
 }
 
-function focusOttySession(id, provider = "codex") {
+function activateMacTerminal(terminal) {
+  const names = {
+    otty: "Otty", terminal: "Terminal", iterm2: "iTerm2",
+    ghostty: "Ghostty", kitty: "kitty", wezterm: "WezTerm"
+  };
+  const app = names[terminal] || "Terminal";
+  spawn("open", ["-a", app], { detached: true, stdio: "ignore" }).unref();
+}
+
+function focusOttySession(id, provider = "codex", cwd = "") {
   if (process.platform !== "darwin" || !/^[A-Za-z0-9_-]+$/.test(String(id || ""))) return false;
   const database = path.join(os.homedir(), "Library", "Application Support", "io.appmakes.otty", "state.db");
   const cli = findExecutable([
@@ -35,41 +52,58 @@ function focusOttySession(id, provider = "codex") {
   // A newly started Codex TUI inherits OTTY_PANE_ID. Otty may temporarily
   // clear resume_key while the task is running, so match the UUIDv7 session
   // creation time to the interactive Codex process before consulting state.db.
-  const launchedPane = provider === "codex" ? findOttyPaneByCodexLaunch(id, database) : null;
+  const openRolloutPane = provider === "codex" ? findOttyPaneByOpenRollout(id, database, cwd) : null;
+  if (openRolloutPane && focusOttyPane(cli, openRolloutPane)) return true;
+
+  const launchedPane = provider === "codex" ? findOttyPaneByCodexLaunch(id, database, cwd) : null;
   if (launchedPane && focusOttyPane(cli, launchedPane)) return true;
 
   const kind = provider === "claude" ? "claude" : "codex";
-  const query = `SELECT id FROM pane WHERE program_type='${kind}' AND resume_key='${id}' AND closed_at IS NULL LIMIT 1;`;
+  const cwdClause = cwd ? ` AND cwd='${sqlText(cwd)}'` : "";
+  const query = `SELECT id FROM pane WHERE program_type='${kind}' AND resume_key='${id}'${cwdClause} AND closed_at IS NULL LIMIT 1;`;
   const selected = spawnSync("/usr/bin/sqlite3", [database, query], { encoding: "utf8", timeout: 1500 });
   const pane = String(selected.stdout || "").trim();
   if (selected.status === 0 && pane && focusOttyPane(cli, pane)) return true;
 
   // Sessions that were explicitly resumed expose their id in the process
   // command. This is the fallback when the original process is no longer live.
-  const resumedPane = findOttyPaneByResumeCommand(id, database, provider);
-  return resumedPane ? focusOttyPane(cli, resumedPane) : false;
+  const resumedPane = findOttyPaneByResumeCommand(id, database, provider, cwd);
+  if (resumedPane && focusOttyPane(cli, resumedPane)) return true;
+
+  const onlyPane = findUniqueOttyPane(database, provider, cwd);
+  return onlyPane ? focusOttyPane(cli, onlyPane) : false;
 }
 
-function findOttyPaneByCodexLaunch(id, database) {
+function findOttyPaneByOpenRollout(id, database, cwd) {
+  return findOttyProcessPane(database, ({ pid, command }) => {
+    if (!isInteractiveAgentCommand(command, "codex")) return null;
+    const files = spawnSync("/usr/sbin/lsof", ["-Fn", "-p", pid], { encoding: "utf8", timeout: 1200 });
+    const hasRollout = String(files.stdout || "").split("\n")
+      .some(line => line.startsWith("n") && line.endsWith(".jsonl") && line.includes(id));
+    return hasRollout ? 0 : null;
+  }, cwd);
+}
+
+function findOttyPaneByCodexLaunch(id, database, cwd) {
   const startedAt = uuidV7Milliseconds(id);
   if (!startedAt) return null;
   return findOttyProcessPane(database, ({ command, processStartedAt }) => {
     if (!isInteractiveAgentCommand(command, "codex")) return null;
     const distance = Math.abs(processStartedAt - startedAt);
     return distance <= 120000 ? distance : null;
-  });
+  }, cwd);
 }
 
-function findOttyPaneByResumeCommand(id, database, provider) {
+function findOttyPaneByResumeCommand(id, database, provider, cwd) {
   return findOttyProcessPane(database, ({ command }) => {
     const matches = provider === "claude"
       ? command.includes(`claude --resume ${id}`)
       : command.includes(`codex resume ${id}`);
     return matches ? 0 : null;
-  });
+  }, cwd);
 }
 
-function findOttyProcessPane(database, scoreCandidate) {
+function findOttyProcessPane(database, scoreCandidate, cwd = "") {
   const result = spawnSync("/bin/ps", ["ax", "-o", "pid=,etime=,command="], { encoding: "utf8", timeout: 1500 });
   if (result.status !== 0) return null;
   const now = Date.now();
@@ -86,7 +120,7 @@ function findOttyProcessPane(database, scoreCandidate) {
       encoding: "utf8", timeout: 1000
     });
     const pane = String(environment.stdout || "").match(/(?:^|\s)OTTY_PANE_ID=([A-Za-z0-9_-]+)/)?.[1];
-    if (!pane || !isActiveOttyPane(database, pane)) continue;
+    if (!pane || !isActiveOttyPane(database, pane, cwd)) continue;
     candidates.push({ pane, score });
   }
   candidates.sort((a, b) => a.score - b.score);
@@ -100,11 +134,26 @@ function isInteractiveAgentCommand(command, provider) {
     && !/(?:^|\/|\s)codex\s+exec(?:\s|$)/.test(command);
 }
 
-function isActiveOttyPane(database, pane) {
+function isActiveOttyPane(database, pane, cwd = "") {
   const raw = pane.startsWith("p_") ? pane.slice(2) : pane;
-  const query = `SELECT COUNT(*) FROM pane WHERE id='${raw}' AND closed_at IS NULL;`;
+  const cwdClause = cwd ? ` AND cwd='${sqlText(cwd)}'` : "";
+  const query = `SELECT COUNT(*) FROM pane WHERE id='${raw}'${cwdClause} AND closed_at IS NULL;`;
   const result = spawnSync("/usr/bin/sqlite3", [database, query], { encoding: "utf8", timeout: 1000 });
   return result.status === 0 && String(result.stdout || "").trim() === "1";
+}
+
+function findUniqueOttyPane(database, provider, cwd) {
+  if (!cwd) return null;
+  const kind = provider === "claude" ? "claude" : "codex";
+  const query = `SELECT id FROM pane WHERE program_type='${kind}' AND cwd='${sqlText(cwd)}' AND closed_at IS NULL;`;
+  const result = spawnSync("/usr/bin/sqlite3", [database, query], { encoding: "utf8", timeout: 1000 });
+  if (result.status !== 0) return null;
+  const panes = String(result.stdout || "").trim().split("\n").filter(Boolean);
+  return panes.length === 1 ? panes[0] : null;
+}
+
+function sqlText(value) {
+  return String(value).replace(/'/g, "''");
 }
 
 function focusOttyPane(cli, pane) {

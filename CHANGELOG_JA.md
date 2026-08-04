@@ -4,6 +4,15 @@
 
 Vibe Float デスクトップアプリと StreamDock Vibe Control プラグインの主な変更点を記録します。
 
+## [0.5.5] - 2026-08-04
+
+### 修正
+
+- 最近のタスク更新を 5 秒間隔から 0.8 秒間隔へ高速化し、Codex タスクイベントの約 0.12 秒後にも更新。
+- Codex プロセスが開いている rollout ファイルと `OTTY_PANE_ID` から、実行中タスクを元の Otty ペインへ正確に関連付け。
+- Otty DB に重複・古い対応情報がある場合は作業ディレクトリも検証し、誤った切り替えや新規ウィンドウを防止。
+- 同じタスクを 8 秒以内に連続して押しても、ターミナルをアクティブにするだけで新しいウィンドウを作成しない。
+
 ## [0.5.4] - 2026-08-04
 
 ### 修正
@@ -128,6 +137,7 @@ Vibe Float デスクトップアプリと StreamDock Vibe Control プラグイ�
 - 最近の Codex タスク 3 件、Sol Effort、週間 Usage、常に手前、移動、サイズ変更に対応。
 - すべての状態をローカル Codex app-server から取得。
 
+[0.5.5]: https://github.com/saheru/vibe-float/releases/tag/v0.5.5
 [0.5.4]: https://github.com/saheru/vibe-float/releases/tag/v0.5.4
 [0.5.3]: https://github.com/saheru/vibe-float/releases/tag/v0.5.3
 [0.5.2]: https://github.com/saheru/vibe-float/releases/tag/v0.5.2

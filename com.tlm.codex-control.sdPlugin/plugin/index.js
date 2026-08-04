@@ -16,7 +16,18 @@ const { openAgentSession } = require("./terminal-router");
 const { spawn } = require("node:child_process");
 
 const plugin = new Plugins();
-let codex = new CodexClient();
+let eventRefreshTimer = null;
+function scheduleEventRefresh() {
+  if (eventRefreshTimer) return;
+  eventRefreshTimer = setTimeout(() => {
+    eventRefreshTimer = null;
+    refresh();
+  }, 120);
+}
+function makeCodexClient(options = {}) {
+  return new CodexClient({ ...options, onThreadEvent: scheduleEventRefresh });
+}
+let codex = makeCodexClient();
 const claude = new ClaudeClient();
 let snapshot = {
   threads: [],
@@ -88,7 +99,7 @@ async function refresh() {
 function scheduleRefresh() {
   clearInterval(refreshTimer);
   clearInterval(usageTimer);
-  refreshTimer = setInterval(refresh, 5000);
+  refreshTimer = setInterval(refresh, 800);
   usageTimer = setInterval(refreshUsage, 3000);
   refresh();
   refreshUsage();
@@ -199,7 +210,7 @@ function commonAction(type, defaults = {}) {
       visible.set(context, { ...(visible.get(context) || {}), type, settings });
       if (settings.codexPath && settings.codexPath !== codex.codexPath) {
         codex.stop();
-        codex = new CodexClient({ codexPath: settings.codexPath });
+        codex = makeCodexClient({ codexPath: settings.codexPath });
         refresh();
       }
       renderOne(context);
@@ -391,12 +402,15 @@ plugin.didReceiveGlobalSettings = ({ payload }) => {
   const configured = payload.settings?.codexPath;
   if (configured && configured !== codex.codexPath) {
     codex.stop();
-    codex = new CodexClient({ codexPath: configured });
+    codex = makeCodexClient({ codexPath: configured });
     refresh();
   }
 };
 
-process.on("exit", () => codex.stop());
+process.on("exit", () => {
+  clearTimeout(eventRefreshTimer);
+  codex.stop();
+});
 
 function openCodexThread(thread, terminal = "auto") {
   if (String(thread?.source || "").toLowerCase() === "cli") {

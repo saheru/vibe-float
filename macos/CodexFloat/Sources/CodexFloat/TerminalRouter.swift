@@ -26,6 +26,8 @@ enum TerminalPreference: String, CaseIterable, Identifiable {
 }
 
 enum TerminalRouter {
+    private static var recentLaunches: [String: Date] = [:]
+
     static func openSession(
         id: String,
         provider: TaskProvider,
@@ -35,33 +37,46 @@ enum TerminalRouter {
     ) {
         // Otty keeps an exact agent-session -> pane mapping. Always prefer an
         // exact live match, even when another fallback terminal is selected.
-        if focusOttySession(id: id, provider: provider) { return }
+        if focusOttySession(id: id, provider: provider, cwd: cwd) { return }
 
         let target = preference == .automatic ? detectedTerminal() : preference
+        let launchKey = "\(provider.rawValue):\(id)"
+        if let previous = recentLaunches[launchKey], Date().timeIntervalSince(previous) < 8 {
+            activate(target)
+            return
+        }
+        recentLaunches[launchKey] = Date()
         if launch(command: command, cwd: cwd, in: target) { return }
         _ = launch(command: command, cwd: cwd, in: .terminal)
     }
 
-    private static func focusOttySession(id: String, provider: TaskProvider) -> Bool {
+    private static func focusOttySession(id: String, provider: TaskProvider, cwd: String) -> Bool {
         guard id.range(of: #"^[A-Za-z0-9_-]+$"#, options: .regularExpression) != nil else { return false }
         let home = FileManager.default.homeDirectoryForCurrentUser
         let database = home.appendingPathComponent("Library/Application Support/io.appmakes.otty/state.db").path
         guard FileManager.default.fileExists(atPath: database) else { return false }
         guard let cli = ottyCLI() else { return false }
 
-        // Otty exposes its pane id to every child process. A fresh Codex TUI
-        // starts at the UUIDv7 session timestamp, which lets us recover the
-        // exact pane even while Otty's transient resume_key is empty.
+        // The native Codex process keeps its current rollout open. Combining
+        // that file descriptor with OTTY_PANE_ID is the most reliable mapping,
+        // including when a long-lived TUI starts more than one task.
         if provider == .codex,
-           let pane = findOttyPaneByCodexLaunch(id: id, database: database),
+           let pane = findOttyPaneByOpenRollout(id: id, database: database, cwd: cwd),
+           focusOttyPane(pane, cli: cli) { return true }
+
+        if provider == .codex,
+           let pane = findOttyPaneByCodexLaunch(id: id, database: database, cwd: cwd),
            focusOttyPane(pane, cli: cli) { return true }
 
         let kind = provider == .claude ? "claude" : "codex"
-        let query = "SELECT id FROM pane WHERE program_type='\(kind)' AND resume_key='\(id)' AND closed_at IS NULL LIMIT 1;"
+        let query = "SELECT id FROM pane WHERE program_type='\(kind)' AND resume_key='\(id)' AND cwd='\(sqlText(cwd))' AND closed_at IS NULL LIMIT 1;"
         guard let pane = capture("/usr/bin/sqlite3", [database, query])?.trimmingCharacters(in: .whitespacesAndNewlines),
               !pane.isEmpty else {
-            if let resumed = findOttyPaneByResumeCommand(id: id, provider: provider, database: database) {
+            if let resumed = findOttyPaneByResumeCommand(id: id, provider: provider, database: database, cwd: cwd) {
                 return focusOttyPane(resumed, cli: cli)
+            }
+            if let onlyPane = findUniqueOttyPane(provider: provider, cwd: cwd, database: database) {
+                return focusOttyPane(onlyPane, cli: cli)
             }
             return false
         }
@@ -75,9 +90,20 @@ enum TerminalRouter {
         return true
     }
 
-    private static func findOttyPaneByCodexLaunch(id: String, database: String) -> String? {
+    private static func findOttyPaneByOpenRollout(id: String, database: String, cwd: String) -> String? {
+        runningOttyProcesses(database: database, cwd: cwd, commandFilter: isInteractiveCodexCommand)
+            .first { process in
+                guard let files = capture("/usr/sbin/lsof", ["-Fn", "-p", process.pid]) else { return false }
+                return files.split(separator: "\n").contains { line in
+                    line.first == "n" && line.hasSuffix(".jsonl") && line.contains(id)
+                }
+            }?
+            .pane
+    }
+
+    private static func findOttyPaneByCodexLaunch(id: String, database: String, cwd: String) -> String? {
         guard let sessionStart = uuidV7Time(id) else { return nil }
-        return runningOttyProcesses(database: database, commandFilter: isInteractiveCodexCommand)
+        return runningOttyProcesses(database: database, cwd: cwd, commandFilter: isInteractiveCodexCommand)
             .filter { abs($0.startedAt.timeIntervalSince(sessionStart)) <= 120 }
             .min { abs($0.startedAt.timeIntervalSince(sessionStart)) < abs($1.startedAt.timeIntervalSince(sessionStart)) }?
             .pane
@@ -86,19 +112,21 @@ enum TerminalRouter {
     private static func findOttyPaneByResumeCommand(
         id: String,
         provider: TaskProvider,
-        database: String
+        database: String,
+        cwd: String
     ) -> String? {
         let marker = provider == .claude ? "claude --resume \(id)" : "codex resume \(id)"
-        return runningOttyProcesses(database: database, commandFilter: { $0.contains(marker) }).first?.pane
+        return runningOttyProcesses(database: database, cwd: cwd, commandFilter: { $0.contains(marker) }).first?.pane
     }
 
     private static func runningOttyProcesses(
         database: String,
+        cwd: String,
         commandFilter: (String) -> Bool
-    ) -> [(command: String, startedAt: Date, pane: String)] {
+    ) -> [(pid: String, command: String, startedAt: Date, pane: String)] {
         guard let listing = capture("/bin/ps", ["ax", "-o", "pid=,etime=,command="]) else { return [] }
         let now = Date()
-        var processes: [(command: String, startedAt: Date, pane: String)] = []
+        var processes: [(pid: String, command: String, startedAt: Date, pane: String)] = []
         for line in listing.split(separator: "\n") {
             let fields = line.split(maxSplits: 2, omittingEmptySubsequences: true, whereSeparator: { $0.isWhitespace })
             guard fields.count == 3,
@@ -108,17 +136,31 @@ enum TerminalRouter {
             guard commandFilter(command) else { continue }
             guard let environment = capture("/bin/ps", ["eww", "-p", pid, "-o", "command="]),
                   let pane = environment.firstRegexCapture(#"(?:^|\s)OTTY_PANE_ID=([A-Za-z0-9_-]+)"#),
-                  isActiveOttyPane(pane, database: database) else { continue }
-            processes.append((command, now.addingTimeInterval(-elapsed), pane))
+                  isActiveOttyPane(pane, database: database, cwd: cwd) else { continue }
+            processes.append((pid, command, now.addingTimeInterval(-elapsed), pane))
         }
         return processes
     }
 
-    private static func isActiveOttyPane(_ pane: String, database: String) -> Bool {
+    private static func isActiveOttyPane(_ pane: String, database: String, cwd: String) -> Bool {
         guard pane.range(of: #"^[A-Za-z0-9_-]+$"#, options: .regularExpression) != nil else { return false }
         let raw = pane.hasPrefix("p_") ? String(pane.dropFirst(2)) : pane
-        let query = "SELECT COUNT(*) FROM pane WHERE id='\(raw)' AND closed_at IS NULL;"
+        let query = "SELECT COUNT(*) FROM pane WHERE id='\(raw)' AND cwd='\(sqlText(cwd))' AND closed_at IS NULL;"
         return capture("/usr/bin/sqlite3", [database, query])?.trimmingCharacters(in: .whitespacesAndNewlines) == "1"
+    }
+
+    private static func findUniqueOttyPane(provider: TaskProvider, cwd: String, database: String) -> String? {
+        guard !cwd.isEmpty else { return nil }
+        let kind = provider == .claude ? "claude" : "codex"
+        let query = "SELECT id FROM pane WHERE program_type='\(kind)' AND cwd='\(sqlText(cwd))' AND closed_at IS NULL;"
+        let panes = capture("/usr/bin/sqlite3", [database, query])?
+            .split(separator: "\n")
+            .map(String.init) ?? []
+        return panes.count == 1 ? panes[0] : nil
+    }
+
+    private static func sqlText(_ value: String) -> String {
+        value.replacingOccurrences(of: "'", with: "''")
     }
 
     private static func isInteractiveCodexCommand(_ command: String) -> Bool {
@@ -166,6 +208,20 @@ enum TerminalRouter {
             return candidate
         }
         return .terminal
+    }
+
+    private static func activate(_ terminal: TerminalPreference) {
+        let target = terminal == .automatic ? detectedTerminal() : terminal
+        let app: String
+        switch target {
+        case .automatic, .terminal: app = "Terminal"
+        case .otty: app = "Otty"
+        case .iTerm2: app = "iTerm2"
+        case .ghostty: app = "Ghostty"
+        case .kitty: app = "kitty"
+        case .wezTerm: app = "WezTerm"
+        }
+        NSWorkspace.shared.launchApplication(app)
     }
 
     private static func launch(command: String, cwd: String, in terminal: TerminalPreference) -> Bool {

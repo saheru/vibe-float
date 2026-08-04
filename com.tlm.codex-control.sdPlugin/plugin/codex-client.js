@@ -28,6 +28,7 @@ class CodexClient {
     this.config = {};
     this.threads = [];
     this.rateLimits = null;
+    this.onThreadEvent = options.onThreadEvent || null;
   }
 
   async start() {
@@ -63,7 +64,7 @@ class CodexClient {
     proc.stderr.on("data", data => log.info("codex", data.toString().trim()));
     readline.createInterface({ input: proc.stdout }).on("line", line => this.onLine(line));
     await this.request("initialize", {
-      clientInfo: { name: "streamdock_vibe_control", title: "StreamDock Vibe Control", version: "0.8.4" },
+      clientInfo: { name: "streamdock_vibe_control", title: "StreamDock Vibe Control", version: "0.8.5" },
       capabilities: { experimentalApi: true }
     });
     this.notify("initialized", {});
@@ -101,6 +102,7 @@ class CodexClient {
       this.rateLimits = null;
       this.accountDirty = true;
     }
+    if (String(message.method || "").startsWith("thread/")) this.onThreadEvent?.(message);
   }
 
   send(message) {

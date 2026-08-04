@@ -4,6 +4,15 @@
 
 This file records notable changes to the Vibe Float desktop apps and the StreamDock Vibe Control plugin.
 
+## [0.5.5] - 2026-08-04
+
+### Fixed
+
+- Increased recent-task polling from every five seconds to every 0.8 seconds, with an event-driven refresh about 0.12 seconds after Codex task events.
+- Bind a running task to its exact Otty pane using the rollout file currently open by the Codex process and its `OTTY_PANE_ID`.
+- Validate the task working directory when Otty contains duplicate or stale mappings, preventing incorrect focus and unwanted new windows.
+- Repeated presses for the same task within eight seconds activate the terminal without creating another window.
+
 ## [0.5.4] - 2026-08-04
 
 ### Fixed
@@ -128,6 +137,7 @@ This file records notable changes to the Vibe Float desktop apps and the StreamD
 - Added three recent Codex tasks, Sol Effort, weekly Usage, always-on-top behavior, dragging, and resizing.
 - Read all state from the local Codex app-server.
 
+[0.5.5]: https://github.com/saheru/vibe-float/releases/tag/v0.5.5
 [0.5.4]: https://github.com/saheru/vibe-float/releases/tag/v0.5.4
 [0.5.3]: https://github.com/saheru/vibe-float/releases/tag/v0.5.3
 [0.5.2]: https://github.com/saheru/vibe-float/releases/tag/v0.5.2

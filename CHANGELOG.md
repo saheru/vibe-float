@@ -4,6 +4,15 @@
 
 本文件记录 Vibe Float 桌面应用与 StreamDock Vibe Control 插件的重要更新。
 
+## [0.5.5] - 2026-08-04
+
+### 修复
+
+- 最近任务由每 5 秒刷新提升为每 0.8 秒刷新，并在 Codex 任务事件发生后约 0.12 秒主动更新。
+- 通过 Codex 进程当前打开的 rollout 文件与 `OTTY_PANE_ID` 精确绑定正在运行的任务和 Otty 标签页。
+- Otty 数据库出现重复或过期映射时，使用任务工作目录进一步校验，避免切错标签页或新建窗口。
+- 同一任务在 8 秒内连续按下时只激活终端，不会重复创建窗口。
+
 ## [0.5.4] - 2026-08-04
 
 ### 修复
@@ -128,6 +137,7 @@
 - 支持最近三个 Codex 任务、Sol Effort、周 Usage、始终置顶、拖动与缩放。
 - 所有状态均从本机 Codex app-server 读取。
 
+[0.5.5]: https://github.com/saheru/vibe-float/releases/tag/v0.5.5
 [0.5.4]: https://github.com/saheru/vibe-float/releases/tag/v0.5.4
 [0.5.3]: https://github.com/saheru/vibe-float/releases/tag/v0.5.3
 [0.5.2]: https://github.com/saheru/vibe-float/releases/tag/v0.5.2

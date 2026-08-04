@@ -196,6 +196,14 @@ test("Codex client restarts and clears cached account data after account switch"
   assert.equal(await client.ensureCurrentAccount(), false);
 });
 
+test("Codex thread events trigger the near-real-time refresh callback", () => {
+  let events = 0;
+  const client = new CodexClient({ codexPath: process.execPath, onThreadEvent: () => { events += 1; } });
+  client.onLine(JSON.stringify({ method: "thread/status/changed", params: { threadId: "thread-1" } }));
+  client.onLine(JSON.stringify({ method: "account/rateLimits/updated", params: {} }));
+  assert.equal(events, 1);
+});
+
 test("thread status is inferred from persisted task events", () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "codex-control-"));
   const rollout = path.join(dir, "rollout.jsonl");
