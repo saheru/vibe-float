@@ -4,6 +4,14 @@
 
 This file records notable changes to the Vibe Float desktop apps and the StreamDock Vibe Control plugin.
 
+## [0.5.4] - 2026-08-04
+
+### Fixed
+
+- Fixed task buttons opening a new Otty window when Otty temporarily clears the live pane's `resume_key`.
+- Recover the original pane by matching the Codex session creation time with the inherited `OTTY_PANE_ID` when the database mapping is missing.
+- Prefer the pane that originally started the task even if the same session was accidentally resumed in another window.
+
 ## [0.5.3] - 2026-08-04
 
 ### Added
@@ -120,6 +128,7 @@ This file records notable changes to the Vibe Float desktop apps and the StreamD
 - Added three recent Codex tasks, Sol Effort, weekly Usage, always-on-top behavior, dragging, and resizing.
 - Read all state from the local Codex app-server.
 
+[0.5.4]: https://github.com/saheru/vibe-float/releases/tag/v0.5.4
 [0.5.3]: https://github.com/saheru/vibe-float/releases/tag/v0.5.3
 [0.5.2]: https://github.com/saheru/vibe-float/releases/tag/v0.5.2
 [0.5.1]: https://github.com/saheru/vibe-float/releases/tag/v0.5.1

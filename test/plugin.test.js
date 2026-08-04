@@ -28,7 +28,11 @@ const {
   effortColor
 } = require("../com.tlm.codex-control.sdPlugin/plugin/render");
 const { collectStatusNotifications, formatStatusNotification } = require("../com.tlm.codex-control.sdPlugin/plugin/notifications");
-const { TERMINALS } = require("../com.tlm.codex-control.sdPlugin/plugin/terminal-router");
+const {
+  TERMINALS,
+  uuidV7Milliseconds,
+  parseElapsedMilliseconds
+} = require("../com.tlm.codex-control.sdPlugin/plugin/terminal-router");
 
 test("manifest defines task, knobs, current-state buttons and usage actions", () => {
   const manifest = JSON.parse(fs.readFileSync(path.join(__dirname, "../com.tlm.codex-control.sdPlugin/manifest.json")));
@@ -296,6 +300,13 @@ test("task cards distinguish Codex CLI and desktop origins", () => {
 
 test("terminal routing exposes automatic and common terminal choices", () => {
   assert.deepEqual(TERMINALS, ["auto", "otty", "terminal", "iterm2", "ghostty", "kitty", "wezterm"]);
+});
+
+test("Otty fallback derives Codex launch time and parses process elapsed time", () => {
+  assert.equal(uuidV7Milliseconds("019fca8c-2c13-7a52-ab5b-aa3ce231f997"), 1785809611795);
+  assert.equal(uuidV7Milliseconds("not-a-session"), null);
+  assert.equal(parseElapsedMilliseconds("01:02:03"), 3723000);
+  assert.equal(parseElapsedMilliseconds("2-01:02:03"), 176523000);
 });
 
 test("Claude client scans CLI sessions and persists model and effort", () => {

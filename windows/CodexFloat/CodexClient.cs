@@ -39,7 +39,7 @@ internal sealed class CodexClient : IAsyncDisposable
 
         await RequestAsync("initialize", new
         {
-            clientInfo = new { name = "vibe_float_windows", title = "Vibe Float", version = "0.5.3" },
+            clientInfo = new { name = "vibe_float_windows", title = "Vibe Float", version = "0.5.4" },
             capabilities = new { experimentalApi = true }
         });
         await NotifyAsync("initialized", new { });

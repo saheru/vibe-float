@@ -4,6 +4,14 @@
 
 Vibe Float デスクトップアプリと StreamDock Vibe Control プラグインの主な変更点を記録します。
 
+## [0.5.4] - 2026-08-04
+
+### 修正
+
+- Otty が実行中ペインの `resume_key` を一時的に消去した際、新しいウィンドウが開く問題を修正。
+- DB の対応情報がない場合、Codex セッション作成時刻とプロセスの `OTTY_PANE_ID` から元のペインを復元。
+- 同じタスクが別ウィンドウで誤って再開されていても、最初にタスクを開始したペインを優先。
+
 ## [0.5.3] - 2026-08-04
 
 ### 追加
@@ -120,6 +128,7 @@ Vibe Float デスクトップアプリと StreamDock Vibe Control プラグイ�
 - 最近の Codex タスク 3 件、Sol Effort、週間 Usage、常に手前、移動、サイズ変更に対応。
 - すべての状態をローカル Codex app-server から取得。
 
+[0.5.4]: https://github.com/saheru/vibe-float/releases/tag/v0.5.4
 [0.5.3]: https://github.com/saheru/vibe-float/releases/tag/v0.5.3
 [0.5.2]: https://github.com/saheru/vibe-float/releases/tag/v0.5.2
 [0.5.1]: https://github.com/saheru/vibe-float/releases/tag/v0.5.1

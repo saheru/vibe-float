@@ -4,6 +4,14 @@
 
 本文件记录 Vibe Float 桌面应用与 StreamDock Vibe Control 插件的重要更新。
 
+## [0.5.4] - 2026-08-04
+
+### 修复
+
+- 修复 Otty 在运行中暂时清空 `resume_key` 时，任务按钮错误新建窗口的问题。
+- 当数据库映射缺失时，通过 Codex 会话创建时间与进程继承的 `OTTY_PANE_ID` 重新定位原标签页。
+- 若同一个任务已经被错误恢复到新窗口，优先切回最初启动该任务的标签页。
+
 ## [0.5.3] - 2026-08-04
 
 ### 新增
@@ -120,6 +128,7 @@
 - 支持最近三个 Codex 任务、Sol Effort、周 Usage、始终置顶、拖动与缩放。
 - 所有状态均从本机 Codex app-server 读取。
 
+[0.5.4]: https://github.com/saheru/vibe-float/releases/tag/v0.5.4
 [0.5.3]: https://github.com/saheru/vibe-float/releases/tag/v0.5.3
 [0.5.2]: https://github.com/saheru/vibe-float/releases/tag/v0.5.2
 [0.5.1]: https://github.com/saheru/vibe-float/releases/tag/v0.5.1
