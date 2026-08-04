@@ -25,6 +25,7 @@ enum TerminalPreference: String, CaseIterable, Identifiable {
     }
 }
 
+@MainActor
 enum TerminalRouter {
     private static var recentLaunches: [String: Date] = [:]
 
