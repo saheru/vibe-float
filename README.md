@@ -17,6 +17,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-b77cff)](LICENSE)
 
 [下载最新版](https://github.com/saheru/vibe-float/releases/latest) ·
+[更新日志](CHANGELOG.md) ·
 [StreamDock 插件](#-streamdock-control) ·
 [使用方法](#-使用方法) ·
 [开发构建](#-开发与构建) ·

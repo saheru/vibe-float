@@ -16,6 +16,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-b77cff)](LICENSE)
 
 [Download the latest release](https://github.com/saheru/vibe-float/releases/latest) ·
+[Changelog](CHANGELOG_EN.md) ·
 [Modules](#configurable-modules) ·
 [Installation](#installation) ·
 [StreamDock](#streamdock-vibe-control)
