@@ -21,6 +21,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install icon build dependency
+        run: python3 -m pip install Pillow
+
       - name: Build universal macOS app
         run: ./scripts/build-codex-float.sh
 
