@@ -14,10 +14,11 @@ struct ContentView: View {
         Int(ceil(Double(max(1, visibleModules.count)) / Double(columnCount)))
     }
     private var dashboardSize: CGSize {
-        CGSize(
-            width: CGFloat(columnCount * 108 + max(0, columnCount - 1) * 10 + 60),
-            height: CGFloat(rowCount * 120 + max(0, rowCount - 1) * 10 + 60)
-        )
+        let columnGaps = max(0, columnCount - 1)
+        let rowGaps = max(0, rowCount - 1)
+        let width = columnCount * 108 + columnGaps * 10 + 60
+        let height = rowCount * 120 + rowGaps * 10 + 60
+        return CGSize(width: CGFloat(width), height: CGFloat(height))
     }
 
     var body: some View {
