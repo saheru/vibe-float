@@ -36,6 +36,8 @@
 | 模块 | 显示 | 操作 |
 |---|---|---|
 | 最近任务 1～8 | 数量可设，混合排列最近的 Codex 与 Claude 任务，显示来源、状态和项目缩写 | Codex 跳转桌面任务；Claude 在终端恢复会话 |
+| Codex · Model | 当前 Codex 模型 | 点击即时切换当前 CLI 会话 |
+| Codex · 权限 | `READ`、`AUTO`、`FULL` | 点击即时切换当前 CLI 会话 |
 | Codex · Sol Effort | `minimal`～`ultra`，不同 effort 使用不同颜色 | 点击循环切换 |
 | Codex · 5h Usage | 5 小时限额、阈值颜色和动态进度轮 | 自动刷新 |
 | Codex · 周 Usage | 实时百分比、阈值颜色和动态进度轮 | 自动刷新 |
@@ -55,7 +57,7 @@
 - 自动区分 Codex CLI 与桌面任务：CLI 任务在终端通过 `codex resume <id>` 恢复，桌面任务通过 `codex://threads/<id>` 打开 Codex Desktop。
 - 支持自动识别 Otty 中正在运行的 Codex / Claude 会话并精确切回原标签页；也可选择 Terminal、iTerm2、Ghostty、Kitty 或 WezTerm 作为 CLI 任务终端。
 - Claude 任务通过 `claude --resume <session-id>` 在终端恢复。
-- 点击 Sol 卡片会更新 Codex 用户配置，新建 Codex CLI 任务也会使用新的模型和 effort。
+- macOS、Windows 和 StreamDock 共用本机 App Server；从任务卡恢复 CLI 后，Model、权限与 Sol Effort 卡片会通过 `thread/settings/update` 更新当前会话的下一轮，同时保存为新任务的默认配置。
 - Claude Model 与 Effort 卡片会更新 `~/.claude/settings.json`，供新建 Claude Code 会话使用。
 
 ### Claude Usage
@@ -125,7 +127,9 @@ Vibe Float 默认按以下顺序查找 Codex：
 
 Sol 模型与推理强度通过 `config/batchWrite` 写入 Codex 用户配置。
 
-> 已运行任务不会在中途更换模型或 effort；新建任务会采用更新后的配置。命令行显式参数优先于用户配置。
+macOS App、Windows App 与 StreamDock 会连接同一个仅监听本机的共享 Codex App Server。从任务卡或任务键打开的 Codex CLI 会连接到该服务；切换模型、Effort 或权限时，控制端同时调用 `thread/settings/update` 更新当前选中的 CLI 会话。
+
+> 切换会对该会话的下一轮立即生效，已经执行中的 Turn 不会中途更换模型或权限。不是从任务键打开的独立 CLI 会话仍只接收新的全局默认配置；从任务键恢复一次后即可使用即时切换。
 
 ## 🎛 StreamDock Control
 
@@ -134,8 +138,8 @@ Sol 模型与推理强度通过 `config/batchWrite` 写入 Codex 用户配置。
 | Action | 控制方式 | 功能 |
 |---|---|---|
 | Codex 任务 | 可视按键 | 显示最近任务状态与项目缩写；点击切换任务 |
-| 模型与推理层级 | 旋钮 / 按键 | 切换模型和当前模型支持的 reasoning effort |
-| Codex 权限 | 旋钮 / 按键 | 切换只读、工作区与完全访问 |
+| 模型与推理层级 | 旋钮 / 按键 | 即时切换当前 CLI 会话的模型和 reasoning effort |
+| Codex 权限 | 旋钮 / 按键 | 即时切换当前 CLI 会话的只读、工作区与完全访问 |
 | 当前模型 | 可视按键 | 显示并切换当前模型 |
 | 当前权限 | 可视按键 | 显示并切换当前权限 |
 | Sol 推理强度 | 旋钮 / 可视按键 | 切换 Sol effort，并使用分级颜色 |
@@ -149,7 +153,7 @@ Sol 模型与推理强度通过 `config/batchWrite` 写入 Codex 用户配置。
 
 Codex 与 Claude 任务完成或等待回复时都可以播放增强提示音，并显示带任务标题、来源和状态的系统通知。Claude 的 Model 与 Effort 写入 `~/.claude/settings.json`，对新建 Claude Code CLI 会话生效。
 
-插件会检测 Codex 登录身份变化；切换 Codex 账号后会自动重启本地 `app-server`，清除旧账号缓存，并刷新模型与 5h/周 Usage，无需重新添加按键。
+插件会检测 Codex 登录身份变化；切换 Codex 账号后会自动重新连接共享 `app-server`、清除旧账号缓存，并刷新模型与 5h/周 Usage，无需重新添加按键。
 
 首次使用 Claude Usage 时，在对应动作的属性面板点击 **启用 Claude Usage 采集**，然后重启正在运行的 Claude CLI 会话。插件会保留并继续调用原有 Status Line 命令。
 

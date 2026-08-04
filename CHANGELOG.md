@@ -4,6 +4,12 @@
 
 本文件记录 Vibe Float 桌面应用与 StreamDock Vibe Control 插件的重要更新。
 
+## [0.5.6] - 2026-08-04
+
+### 新增
+
+- macOS App、Windows App 与 StreamDock 插件通过本机共享 App Server 启动 Codex CLI，并新增 Model 与权限控制；会话可用 `thread/settings/update` 即时切换模型、Reasoning Effort 与权限，新设置从下一轮生效。
+
 ## [0.5.5] - 2026-08-04
 
 ### 修复

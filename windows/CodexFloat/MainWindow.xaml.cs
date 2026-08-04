@@ -18,8 +18,12 @@ public partial class MainWindow : Window
     private readonly List<VibeTask> _tasks = [];
     private readonly List<VibeTask> _codexTasks = [];
     private readonly List<VibeTask> _claudeTasks = [];
+    private readonly List<ModelChoice> _models = [];
     private List<string> _solEfforts = ["low", "medium", "high", "xhigh"];
     private string? _solModel;
+    private string? _currentModel;
+    private string? _selectedCodexThread;
+    private int _permissionIndex = 1;
     private string _effort = "medium";
     private string _claudeModel = "sonnet";
     private string _claudeEffort = "high";
@@ -29,6 +33,12 @@ public partial class MainWindow : Window
     private bool _refreshingClaude;
     private HashSet<string> _enabledModules = [];
     private int _taskCount = 3;
+    private static readonly PermissionChoice[] Permissions =
+    [
+        new("READ", "read-only", "untrusted", "readOnly"),
+        new("AUTO", "workspace-write", "on-request", "workspaceWrite"),
+        new("FULL", "danger-full-access", "never", "dangerFullAccess")
+    ];
 
     public MainWindow()
     {
@@ -40,6 +50,7 @@ public partial class MainWindow : Window
         LoadModuleSettings();
         LoadTaskCount();
         RenderEmptyTasks();
+        RenderCodexControls();
         RenderEffort();
         RenderUsage(null, CodexFiveHourUsageText, CodexFiveHourUsageArc);
         RenderUsage(null, CodexUsageText, CodexUsageArc);
@@ -131,32 +142,36 @@ public partial class MainWindow : Window
 
     private void ApplyModels(JsonElement modelResult, JsonElement configResult)
     {
+        _models.Clear();
         if (modelResult.TryGetProperty("data", out var models))
         {
             foreach (var model in models.EnumerateArray())
             {
                 var id = String(model, "model");
                 var display = String(model, "displayName");
+                var efforts = model.TryGetProperty("supportedReasoningEfforts", out var advertised)
+                    ? advertised.EnumerateArray().Select(item => String(item, "reasoningEffort"))
+                        .Where(value => !string.IsNullOrEmpty(value)).ToList()
+                    : [];
+                _models.Add(new ModelChoice(id, display, efforts, String(model, "defaultReasoningEffort")));
                 if (id == "gpt-5.6-sol" || $"{id} {display}".Contains("sol", StringComparison.OrdinalIgnoreCase))
                 {
                     _solModel = id;
-                    if (model.TryGetProperty("supportedReasoningEfforts", out var supported))
-                    {
-                        var values = supported.EnumerateArray()
-                            .Select(item => String(item, "reasoningEffort"))
-                            .Where(value => !string.IsNullOrEmpty(value))
-                            .ToList();
-                        if (values.Count > 0) _solEfforts = values;
-                    }
-                    break;
+                    if (efforts.Count > 0) _solEfforts = efforts;
                 }
             }
         }
         if (configResult.TryGetProperty("config", out var config))
         {
+            _currentModel = String(config, "model");
+            if (string.IsNullOrEmpty(_currentModel)) _currentModel = _models.FirstOrDefault()?.Id;
+            var sandbox = String(config, "sandbox_mode");
+            var permission = Array.FindIndex(Permissions, item => item.Sandbox == sandbox);
+            if (permission >= 0) _permissionIndex = permission;
             var configured = String(config, "model_reasoning_effort");
             if (_solEfforts.Contains(configured)) _effort = configured;
         }
+        RenderCodexControls();
         RenderEffort();
     }
 
@@ -290,6 +305,9 @@ public partial class MainWindow : Window
     private string CodexFiveHourMigrationPath => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
         "Vibe Float", "codex-5h-added.flag");
+    private string CodexSessionControlsMigrationPath => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+        "Vibe Float", "codex-session-controls-added.flag");
 
     private void LoadModuleSettings()
     {
@@ -312,6 +330,13 @@ public partial class MainWindow : Window
         }
         Directory.CreateDirectory(Path.GetDirectoryName(CodexFiveHourMigrationPath)!);
         File.WriteAllText(CodexFiveHourMigrationPath, "1");
+        if (!File.Exists(CodexSessionControlsMigrationPath))
+        {
+            _enabledModules.Add("codexModel");
+            _enabledModules.Add("codexPermission");
+            SaveModuleSettings();
+            File.WriteAllText(CodexSessionControlsMigrationPath, "1");
+        }
     }
 
     private void LoadTaskCount()
@@ -367,6 +392,8 @@ public partial class MainWindow : Window
     {
         var entries = new (string Key, FrameworkElement View, MenuItem Menu)[]
         {
+            ("codexModel", CodexModelButton, ModuleCodexModel),
+            ("codexPermission", CodexPermissionButton, ModuleCodexPermission),
             ("codexEffort", EffortButton, ModuleCodexEffort),
             ("codexFiveHourUsage", CodexFiveHourUsageButton, ModuleCodexFiveHourUsage),
             ("codexUsage", CodexUsageButton, ModuleCodexUsage),
@@ -439,11 +466,76 @@ public partial class MainWindow : Window
             });
             _effort = next;
             RenderEffort();
+            await UpdateSelectedThreadAsync(new { model = _solModel, effort = next });
         }
         catch (Exception error)
         {
             Title = $"Vibe Float — Codex: {error.Message}";
         }
+    }
+
+    private async void CodexModel_Click(object sender, RoutedEventArgs e)
+    {
+        if (_models.Count == 0) return;
+        var current = Math.Max(0, _models.FindIndex(model => model.Id == _currentModel));
+        var next = _models[(current + 1) % _models.Count];
+        var effort = next.Efforts.Contains(_effort)
+            ? _effort
+            : string.IsNullOrEmpty(next.DefaultEffort) ? _effort : next.DefaultEffort;
+        try
+        {
+            await _codex.RequestAsync("config/batchWrite", new
+            {
+                edits = new object[]
+                {
+                    new { keyPath = "model", value = next.Id, mergeStrategy = "upsert" },
+                    new { keyPath = "model_reasoning_effort", value = effort, mergeStrategy = "upsert" }
+                },
+                reloadUserConfig = true
+            });
+            _currentModel = next.Id;
+            _effort = effort;
+            RenderCodexControls();
+            RenderEffort();
+            await UpdateSelectedThreadAsync(new { model = next.Id, effort });
+        }
+        catch (Exception error) { Title = $"Vibe Float — Codex: {error.Message}"; }
+    }
+
+    private async void CodexPermission_Click(object sender, RoutedEventArgs e)
+    {
+        var nextIndex = (_permissionIndex + 1) % Permissions.Length;
+        var permission = Permissions[nextIndex];
+        try
+        {
+            await _codex.RequestAsync("config/batchWrite", new
+            {
+                edits = new object[]
+                {
+                    new { keyPath = "sandbox_mode", value = permission.Sandbox, mergeStrategy = "upsert" },
+                    new { keyPath = "approval_policy", value = permission.Approval, mergeStrategy = "upsert" }
+                },
+                reloadUserConfig = true
+            });
+            _permissionIndex = nextIndex;
+            RenderCodexControls();
+            await UpdateSelectedThreadAsync(new
+            {
+                approvalPolicy = permission.Approval,
+                sandboxPolicy = new { type = permission.PolicyType }
+            });
+        }
+        catch (Exception error) { Title = $"Vibe Float — Codex: {error.Message}"; }
+    }
+
+    private async Task UpdateSelectedThreadAsync(object settings)
+    {
+        if (!_codex.UsesSharedServer || string.IsNullOrEmpty(_selectedCodexThread)) return;
+        var values = JsonSerializer.SerializeToElement(settings);
+        var parameters = new Dictionary<string, object?> { ["threadId"] = _selectedCodexThread };
+        foreach (var property in values.EnumerateObject()) parameters[property.Name] = property.Value.Clone();
+        try { await _codex.RequestAsync("thread/settings/update", parameters); }
+        catch (Exception error) when (error.Message.Contains("thread not found", StringComparison.OrdinalIgnoreCase)) { }
     }
 
     private void Task_Click(object sender, RoutedEventArgs e)
@@ -454,12 +546,13 @@ public partial class MainWindow : Window
         {
             if (string.Equals(task.CodexSource, "cli", StringComparison.OrdinalIgnoreCase))
             {
+                _selectedCodexThread = task.Id;
                 var cliCwd = string.IsNullOrWhiteSpace(task.Cwd)
                     ? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)
                     : task.Cwd;
                 var codex = CodexClient.FindCodex();
                 Process.Start(new ProcessStartInfo("cmd.exe",
-                    $"/d /s /c start \"Codex CLI\" cmd.exe /k \"cd /d \\\"{cliCwd}\\\" && \\\"{codex}\\\" resume \\\"{task.Id}\\\"\"")
+                    $"/d /s /c start \"Codex CLI\" cmd.exe /k \"cd /d \\\"{cliCwd}\\\" && \\\"{codex}\\\" --remote \\\"{_codex.SharedEndpoint}\\\" resume \\\"{task.Id}\\\"\"")
                 {
                     UseShellExecute = false,
                     CreateNoWindow = true
@@ -539,6 +632,29 @@ public partial class MainWindow : Window
         EffortPill.Background = Brush($"20{color[1..]}");
     }
 
+    private void RenderCodexControls()
+    {
+        var model = _models.FirstOrDefault(item => item.Id == _currentModel);
+        CodexModelText.Text = ShortCodexModel(model?.Display ?? _currentModel ?? "DEFAULT");
+        var permission = Permissions[_permissionIndex];
+        var color = permission.Short switch
+        {
+            "READ" => "#65A7FF",
+            "FULL" => "#FF6B78",
+            _ => "#64D98B"
+        };
+        CodexPermissionText.Text = permission.Short;
+        CodexPermissionText.Foreground = Brush(color);
+        CodexPermissionPill.BorderBrush = Brush(color);
+        CodexPermissionPill.Background = Brush($"20{color[1..]}");
+    }
+
+    private static string ShortCodexModel(string model)
+    {
+        var value = model.Replace("GPT-", "", StringComparison.OrdinalIgnoreCase).Replace(" ", "");
+        return new string(value.Take(9).ToArray()).ToUpperInvariant();
+    }
+
     private static void RenderUsage(double? percent, TextBlock text, System.Windows.Shapes.Path arc)
     {
         text.Text = percent is null ? "N/A" : $"{Math.Round(percent.Value):0}%";
@@ -615,6 +731,8 @@ public partial class MainWindow : Window
     private void RenderDisconnected()
     {
         RenderEmptyTasks();
+        CodexModelText.Text = "离线";
+        CodexPermissionText.Text = "离线";
         EffortText.Text = "离线";
         CodexFiveHourUsageText.Text = "离线";
         CodexUsageText.Text = "离线";
@@ -653,5 +771,8 @@ public partial class MainWindow : Window
         _metadataTimer.Stop();
         await _codex.DisposeAsync();
     }
+
+    private sealed record ModelChoice(string Id, string Display, List<string> Efforts, string DefaultEffort);
+    private sealed record PermissionChoice(string Short, string Sandbox, string Approval, string PolicyType);
 
 }

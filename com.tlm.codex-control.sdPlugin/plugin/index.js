@@ -43,12 +43,23 @@ let usageInFlight = null;
 const visible = new Map();
 const threadStatusCache = new Map();
 const claudeStatusCache = new Map();
+let selectedCodexThreadId = null;
 const CLAUDE_TYPES = new Set([
   "claudetask", "claudemodel", "claudeeffort", "claudeusage5h", "claudeusageweek"
 ]);
 
 function isClaudeType(type) {
   return CLAUDE_TYPES.has(type);
+}
+
+function targetCodexThreadId() {
+  if (selectedCodexThreadId && snapshot.threads.some(thread => thread.id === selectedCodexThreadId)) {
+    return selectedCodexThreadId;
+  }
+  return snapshot.threads.find(thread => (
+    String(thread.source || "").toLowerCase() === "cli"
+    && ["active", "needsInput"].includes(thread.displayStatus?.type)
+  ))?.id || null;
 }
 
 function hasVisibleCodexAction() {
@@ -246,6 +257,7 @@ plugin.task.keyUp = ({ context }) => {
   const slot = Number(actionSettings.slot || 0);
   const thread = snapshot.threads[slot];
   if (!thread) return plugin.showAlert(context);
+  if (String(thread.source || "").toLowerCase() === "cli") selectedCodexThreadId = thread.id;
   openCodexThread(thread, actionSettings.terminal || "auto");
   plugin.showOk(context);
 };
@@ -267,10 +279,10 @@ plugin.model.dialRotate = async ({ context, payload }) => {
     if (payload.pressed) {
       const item = visible.get(context);
       if (item) item.mode = "effort";
-      const effort = await codex.rotateEffort(payload.ticks);
+      const effort = await codex.rotateEffort(payload.ticks, targetCodexThreadId());
       log.info("effort changed", effort);
     } else {
-      const model = await codex.rotateModel(payload.ticks);
+      const model = await codex.rotateModel(payload.ticks, targetCodexThreadId());
       log.info("model changed", model?.model);
     }
     renderAll();
@@ -288,7 +300,7 @@ plugin.permission = commonAction("permission");
 plugin.permission.dialRotate = async ({ context, payload }) => {
   try {
     await ensureStarted();
-    const permission = await codex.rotatePermission(payload.ticks);
+    const permission = await codex.rotatePermission(payload.ticks, targetCodexThreadId());
     log.info("permission changed", permission.sandbox, permission.approval);
     renderAll();
     plugin.showOk(context);
@@ -305,7 +317,7 @@ plugin.currentmodel = commonAction("currentmodel");
 plugin.currentmodel.keyUp = async ({ context }) => {
   try {
     await ensureStarted();
-    const model = await codex.rotateModel(1);
+    const model = await codex.rotateModel(1, targetCodexThreadId());
     log.info("model button changed", model?.model);
     renderAll();
     plugin.showOk(context);
@@ -319,7 +331,7 @@ plugin.currentpermission = commonAction("currentpermission");
 plugin.currentpermission.keyUp = async ({ context }) => {
   try {
     await ensureStarted();
-    const permission = await codex.rotatePermission(1);
+    const permission = await codex.rotatePermission(1, targetCodexThreadId());
     log.info("permission button changed", permission.sandbox, permission.approval);
     renderAll();
     plugin.showOk(context);
@@ -333,7 +345,7 @@ plugin.soleffort = commonAction("soleffort");
 plugin.soleffort.dialRotate = async ({ context, payload }) => {
   try {
     await ensureStarted();
-    const result = await codex.rotateSolEffort(payload.ticks);
+    const result = await codex.rotateSolEffort(payload.ticks, targetCodexThreadId());
     log.info("sol effort changed", result.model.model, result.effort);
     renderAll();
     plugin.showOk(context);
@@ -436,7 +448,9 @@ function openCodexThread(thread, terminal = "auto") {
 function openCodexCliThread(thread, terminal = "auto") {
   const cwd = thread.cwd || process.env.HOME || process.env.USERPROFILE || ".";
   const changeDirectory = process.platform === "win32" ? `cd /d ${shellQuote(cwd)}` : `cd ${shellQuote(cwd)}`;
-  const command = `${changeDirectory} && ${shellQuote(codex.codexPath || "codex")} resume ${shellQuote(thread.id)}`;
+  const remote = codex.remoteAddress();
+  const remoteOption = remote ? ` --remote ${shellQuote(remote)}` : "";
+  const command = `${changeDirectory} && ${shellQuote(codex.codexPath || "codex")}${remoteOption} resume ${shellQuote(thread.id)}`;
   openAgentSession({ id: thread.id, provider: "codex", cwd, command, preference: terminal, log });
 }
 

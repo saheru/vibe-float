@@ -4,6 +4,8 @@ import Foundation
 @MainActor
 final class CodexService: ObservableObject {
     @Published var tasks: [VibeTask] = []
+    @Published var codexModel = "DEFAULT"
+    @Published var codexPermission = "AUTO"
     @Published var solEffort = "medium"
     @Published var fiveHourUsage: UsageWindow?
     @Published var weeklyUsage: UsageWindow?
@@ -17,6 +19,8 @@ final class CodexService: ObservableObject {
     private var codexTasks: [VibeTask] = []
     private var claudeTasks: [VibeTask] = []
     private var process: Process?
+    private var sharedHost: Process?
+    private var webSocket: URLSessionWebSocketTask?
     private var stdin: FileHandle?
     private var readBuffer = Data()
     private var nextID = 1
@@ -36,13 +40,88 @@ final class CodexService: ObservableObject {
     private var isRefreshingClaude = false
     private var shouldRun = false
     private var lastServerError = ""
+    private var isStartingCodex = false
+    private var selectedCodexThreadID: String?
+    private var currentModelID: String?
+    private var currentPermissionIndex = 1
+    private let permissions = [
+        (name: "只读", short: "READ", sandbox: "read-only", approval: "untrusted"),
+        (name: "工作区", short: "AUTO", sandbox: "workspace-write", approval: "on-request"),
+        (name: "完全访问", short: "FULL", sandbox: "danger-full-access", approval: "never")
+    ]
+    private let sharedEndpoint = ProcessInfo.processInfo.environment["VIBE_CODEX_APP_SERVER"]
+        ?? "ws://127.0.0.1:45876"
 
     func start() {
         shouldRun = true
         startClaudeMonitoring()
-        guard process == nil else { return }
+        guard process == nil, webSocket == nil, !isStartingCodex else { return }
         reconnectTimer?.invalidate()
         reconnectTimer = nil
+        isStartingCodex = true
+        Task { await startCodexConnection() }
+    }
+
+    private func startCodexConnection() async {
+        defer { isStartingCodex = false }
+        do {
+            try launchSharedHost()
+            var lastError: Error?
+            for _ in 0..<30 {
+                do {
+                    try await connectSharedServer()
+                    return
+                } catch {
+                    lastError = error
+                    closeWebSocket()
+                    try? await Task.sleep(for: .milliseconds(100))
+                }
+            }
+            throw lastError ?? ServiceError.message("共享 Codex App Server 启动超时")
+        } catch {
+            // Older Codex builds without WebSocket transport keep the original
+            // stdio behavior; immediate per-thread switching is then disabled.
+            startStdioServer()
+        }
+    }
+
+    private func launchSharedHost() throws {
+        if let sharedHost, sharedHost.isRunning { return }
+        sharedHost = nil
+        let executable = try findCodex()
+        let host = Process()
+        host.executableURL = URL(fileURLWithPath: executable)
+        host.arguments = ["app-server", "--listen", sharedEndpoint]
+        host.environment = codexEnvironment(executable: executable)
+        host.standardInput = FileHandle.nullDevice
+        host.standardOutput = FileHandle.nullDevice
+        host.standardError = FileHandle.nullDevice
+        try host.run()
+        sharedHost = host
+    }
+
+    private func connectSharedServer() async throws {
+        guard let url = URL(string: sharedEndpoint) else {
+            throw ServiceError.message("无效的共享 App Server 地址")
+        }
+        let socket = URLSession.shared.webSocketTask(with: url)
+        webSocket = socket
+        socket.resume()
+        receiveWebSocket(socket)
+        try await requestVoidAsync("initialize", params: [
+            "clientInfo": [
+                "name": "vibe_float",
+                "title": "Vibe Float",
+                "version": "0.5.6"
+            ],
+            "capabilities": ["experimentalApi": true]
+        ])
+        notify("initialized", params: [:])
+        finishConnectedStart()
+    }
+
+    private func startStdioServer() {
+        guard process == nil else { return }
         do {
             let task = Process()
             let input = Pipe()
@@ -89,7 +168,7 @@ final class CodexService: ObservableObject {
                 "clientInfo": [
                     "name": "vibe_float",
                     "title": "Vibe Float",
-                    "version": "0.5.5"
+                    "version": "0.5.6"
                 ],
                 "capabilities": ["experimentalApi": true]
             ]) { [weak self] result in
@@ -100,22 +179,29 @@ final class CodexService: ObservableObject {
                     return
                 }
                 self.notify("initialized", params: [:])
-                self.connected = true
-                self.refresh()
-                self.taskTimer = Timer.scheduledTimer(withTimeInterval: 0.8, repeats: true) { [weak self] _ in
-                    Task { @MainActor in self?.refreshTasks() }
-                }
-                self.usageTimer = Timer.scheduledTimer(withTimeInterval: 3, repeats: true) { [weak self] _ in
-                    Task { @MainActor in self?.refreshUsage() }
-                }
-                self.staticTimer = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak self] _ in
-                    Task { @MainActor in self?.refreshStatic() }
-                }
+                self.finishConnectedStart()
             }
         } catch {
             connected = false
             fail(error)
             scheduleReconnect()
+        }
+    }
+
+    private func finishConnectedStart() {
+        connected = true
+        refresh()
+        taskTimer?.invalidate()
+        usageTimer?.invalidate()
+        staticTimer?.invalidate()
+        taskTimer = Timer.scheduledTimer(withTimeInterval: 0.8, repeats: true) { [weak self] _ in
+            Task { @MainActor in self?.refreshTasks() }
+        }
+        usageTimer = Timer.scheduledTimer(withTimeInterval: 3, repeats: true) { [weak self] _ in
+            Task { @MainActor in self?.refreshUsage() }
+        }
+        staticTimer = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak self] _ in
+            Task { @MainActor in self?.refreshStatic() }
         }
     }
 
@@ -128,18 +214,26 @@ final class CodexService: ObservableObject {
         eventRefreshTimer?.invalidate()
         claudeTimer = nil
         eventRefreshTimer = nil
+        closeWebSocket()
         process?.terminate()
         process = nil
         connected = false
+    }
+
+    private func closeWebSocket() {
+        let socket = webSocket
+        webSocket = nil
+        socket?.cancel(with: .goingAway, reason: nil)
     }
 
     func openTask(_ task: VibeTask, terminal: TerminalPreference = .automatic) {
         switch task.provider {
         case .codex:
             if task.codexSurface == .cli {
+                selectedCodexThreadID = task.id
                 let cwd = task.cwd.isEmpty ? FileManager.default.homeDirectoryForCurrentUser.path : task.cwd
                 let executable = (try? findCodex()) ?? "codex"
-                let command = "cd \(shellQuote(cwd)) && \(shellQuote(executable)) resume \(shellQuote(task.id))"
+                let command = "cd \(shellQuote(cwd)) && \(shellQuote(executable)) --remote \(shellQuote(sharedEndpoint)) resume \(shellQuote(task.id))"
                 TerminalRouter.openSession(id: task.id, provider: .codex, cwd: cwd, command: command, preference: terminal)
                 return
             }
@@ -172,7 +266,78 @@ final class CodexService: ObservableObject {
             switch result {
             case .success:
                 self?.solEffort = effort
+                self?.updateSelectedThread([
+                    "model": sol,
+                    "effort": effort
+                ])
             case .failure(let error):
+                self?.fail(error)
+            }
+        }
+    }
+
+    func cycleCodexModel(_ direction: Int = 1) {
+        guard connected, !models.isEmpty else { return }
+        let current = models.firstIndex { ($0["model"] as? String) == currentModelID } ?? 0
+        let next = models[(current + (direction >= 0 ? 1 : -1) + models.count) % models.count]
+        guard let modelID = next["model"] as? String else { return }
+        let efforts = (next["supportedReasoningEfforts"] as? [[String: Any]] ?? [])
+            .compactMap { $0["reasoningEffort"] as? String }
+        let effort = efforts.contains(solEffort)
+            ? solEffort
+            : (next["defaultReasoningEffort"] as? String ?? solEffort)
+        request("config/batchWrite", params: [
+            "edits": [
+                ["keyPath": "model", "value": modelID, "mergeStrategy": "upsert"],
+                ["keyPath": "model_reasoning_effort", "value": effort, "mergeStrategy": "upsert"]
+            ],
+            "reloadUserConfig": true
+        ]) { [weak self] result in
+            switch result {
+            case .success:
+                guard let self else { return }
+                self.currentModelID = modelID
+                self.codexModel = Self.shortModel(next["displayName"] as? String ?? modelID)
+                self.solEffort = effort
+                self.updateSelectedThread(["model": modelID, "effort": effort])
+            case .failure(let error): self?.fail(error)
+            }
+        }
+    }
+
+    func cycleCodexPermission(_ direction: Int = 1) {
+        guard connected else { return }
+        let next = (currentPermissionIndex + (direction >= 0 ? 1 : -1) + permissions.count) % permissions.count
+        let permission = permissions[next]
+        request("config/batchWrite", params: [
+            "edits": [
+                ["keyPath": "sandbox_mode", "value": permission.sandbox, "mergeStrategy": "upsert"],
+                ["keyPath": "approval_policy", "value": permission.approval, "mergeStrategy": "upsert"]
+            ],
+            "reloadUserConfig": true
+        ]) { [weak self] result in
+            switch result {
+            case .success:
+                guard let self else { return }
+                self.currentPermissionIndex = next
+                self.codexPermission = permission.short
+                let policyType = permission.sandbox == "read-only"
+                    ? "readOnly"
+                    : permission.sandbox == "danger-full-access" ? "dangerFullAccess" : "workspaceWrite"
+                self.updateSelectedThread([
+                    "approvalPolicy": permission.approval,
+                    "sandboxPolicy": ["type": policyType]
+                ])
+            case .failure(let error): self?.fail(error)
+            }
+        }
+    }
+
+    private func updateSelectedThread(_ settings: [String: Any]) {
+        guard webSocket != nil, let threadID = selectedCodexThreadID else { return }
+        request("thread/settings/update", params: ["threadId": threadID].merging(settings) { _, new in new }) { [weak self] result in
+            if case .failure(let error) = result,
+               !error.localizedDescription.localizedCaseInsensitiveContains("thread not found") {
                 self?.fail(error)
             }
         }
@@ -306,6 +471,17 @@ final class CodexService: ObservableObject {
             }
         }
         let config = resultConfig?["config"] as? [String: Any] ?? [:]
+        currentModelID = config["model"] as? String
+            ?? models.first(where: { ($0["isDefault"] as? Bool) == true })?["model"] as? String
+            ?? models.first?["model"] as? String
+        if let current = models.first(where: { ($0["model"] as? String) == currentModelID }) {
+            codexModel = Self.shortModel(current["displayName"] as? String ?? currentModelID ?? "DEFAULT")
+        }
+        let sandbox = config["sandbox_mode"] as? String
+        if let index = permissions.firstIndex(where: { $0.sandbox == sandbox }) {
+            currentPermissionIndex = index
+        }
+        codexPermission = permissions[currentPermissionIndex].short
         let configured = config["model_reasoning_effort"] as? String
         if let configured, supportedSolEfforts.contains(configured) {
             solEffort = configured
@@ -313,6 +489,13 @@ final class CodexService: ObservableObject {
                   let fallback = sol["defaultReasoningEffort"] as? String {
             solEffort = fallback
         }
+    }
+
+    private static func shortModel(_ value: String) -> String {
+        let cleaned = value
+            .replacingOccurrences(of: "GPT-", with: "", options: .caseInsensitive)
+            .replacingOccurrences(of: " ", with: "")
+        return String(cleaned.prefix(9)).uppercased()
     }
 
     private func applyThreads(_ result: [String: Any]?) {
@@ -522,12 +705,34 @@ final class CodexService: ObservableObject {
         send(["method": method, "id": id, "params": params])
     }
 
+    private func requestVoidAsync(_ method: String, params: [String: Any]) async throws {
+        try await withCheckedThrowingContinuation { continuation in
+            request(method, params: params) { result in
+                switch result {
+                case .success: continuation.resume(returning: ())
+                case .failure(let error): continuation.resume(throwing: error)
+                }
+            }
+        }
+    }
+
     private func notify(_ method: String, params: [String: Any]) {
         send(["method": method, "params": params])
     }
 
     private func send(_ object: [String: Any]) {
-        guard let stdin, let data = try? JSONSerialization.data(withJSONObject: object) else { return }
+        guard let data = try? JSONSerialization.data(withJSONObject: object) else { return }
+        if let socket = webSocket {
+            Task {
+                do {
+                    try await socket.send(.data(data))
+                } catch {
+                    await MainActor.run { self.handleWebSocketFailure(error, socket: socket) }
+                }
+            }
+            return
+        }
+        guard let stdin else { return }
         do {
             try stdin.write(contentsOf: data + Data([0x0A]))
         } catch {
@@ -535,25 +740,61 @@ final class CodexService: ObservableObject {
         }
     }
 
+    private func receiveWebSocket(_ socket: URLSessionWebSocketTask) {
+        socket.receive { [weak self, weak socket] result in
+            guard let self, let socket else { return }
+            Task { @MainActor in
+                guard self.webSocket === socket else { return }
+                switch result {
+                case .success(.data(let data)):
+                    self.consumeMessage(data)
+                    self.receiveWebSocket(socket)
+                case .success(.string(let text)):
+                    self.consumeMessage(Data(text.utf8))
+                    self.receiveWebSocket(socket)
+                case .failure(let error):
+                    self.handleWebSocketFailure(error, socket: socket)
+                @unknown default:
+                    self.handleWebSocketFailure(ServiceError.message("未知 WebSocket 消息"), socket: socket)
+                }
+            }
+        }
+    }
+
+    private func handleWebSocketFailure(_ error: Error, socket: URLSessionWebSocketTask) {
+        guard webSocket === socket else { return }
+        closeWebSocket()
+        connected = false
+        for callback in pending.values { callback(.failure(error)) }
+        pending.removeAll()
+        fail(error)
+        stopCodexTimers()
+        if !isStartingCodex { scheduleReconnect() }
+    }
+
     private func consume(_ data: Data) {
         readBuffer.append(data)
         while let newline = readBuffer.firstIndex(of: 0x0A) {
             let line = readBuffer[..<newline]
             readBuffer.removeSubrange(...newline)
-            guard let object = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { continue }
-            if let id = (object["id"] as? NSNumber)?.intValue, let callback = pending.removeValue(forKey: id) {
-                if let errorObject = object["error"] as? [String: Any] {
-                    callback(.failure(ServiceError.message(errorObject["message"] as? String ?? "Codex 请求失败")))
-                } else {
-                    callback(.success(object["result"] as? [String: Any] ?? [:]))
-                }
+            consumeMessage(Data(line))
+        }
+    }
+
+    private func consumeMessage(_ data: Data) {
+        guard let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return }
+        if let id = (object["id"] as? NSNumber)?.intValue, let callback = pending.removeValue(forKey: id) {
+            if let errorObject = object["error"] as? [String: Any] {
+                callback(.failure(ServiceError.message(errorObject["message"] as? String ?? "Codex 请求失败")))
+            } else {
+                callback(.success(object["result"] as? [String: Any] ?? [:]))
             }
-            if let method = object["method"] as? String, method.hasPrefix("thread/"), eventRefreshTimer == nil {
-                eventRefreshTimer = Timer.scheduledTimer(withTimeInterval: 0.12, repeats: false) { [weak self] _ in
-                    Task { @MainActor in
-                        self?.eventRefreshTimer = nil
-                        self?.refreshTasks()
-                    }
+        }
+        if let method = object["method"] as? String, method.hasPrefix("thread/"), eventRefreshTimer == nil {
+            eventRefreshTimer = Timer.scheduledTimer(withTimeInterval: 0.12, repeats: false) { [weak self] _ in
+                Task { @MainActor in
+                    self?.eventRefreshTimer = nil
+                    self?.refreshTasks()
                 }
             }
         }

@@ -4,6 +4,12 @@
 
 Vibe Float デスクトップアプリと StreamDock Vibe Control プラグインの主な変更点を記録します。
 
+## [0.5.6] - 2026-08-04
+
+### 追加
+
+- macOS App、Windows App、StreamDock プラグインはローカル共有 App Server 経由で Codex CLI を起動し、Model と権限の操作を追加しました。`thread/settings/update` により、選択中セッションの設定を次の Turn から即時に切り替えられます。
+
 ## [0.5.5] - 2026-08-04
 
 ### 修正

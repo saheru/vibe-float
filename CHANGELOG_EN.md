@@ -4,6 +4,12 @@
 
 This file records notable changes to the Vibe Float desktop apps and the StreamDock Vibe Control plugin.
 
+## [0.5.6] - 2026-08-04
+
+### Added
+
+- The macOS app, Windows app, and StreamDock plugin now launch Codex CLI through a local shared App Server, add Model and Permission controls, and use `thread/settings/update` to switch the selected session's settings for its next turn.
+
 ## [0.5.5] - 2026-08-04
 
 ### Fixed

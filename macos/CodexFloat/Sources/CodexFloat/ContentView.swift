@@ -89,6 +89,24 @@ struct ContentView: View {
             }
         } else {
             switch module {
+            case .codexModel:
+                ValueControlTile(
+                    provider: "CX",
+                    title: "MODEL",
+                    value: codex.codexModel,
+                    color: Color(red: 0.21, green: 0.65, blue: 1)
+                ) {
+                    codex.cycleCodexModel()
+                }
+            case .codexPermission:
+                ValueControlTile(
+                    provider: "CX",
+                    title: "PERM",
+                    value: codex.codexPermission,
+                    color: permissionColor(codex.codexPermission)
+                ) {
+                    codex.cycleCodexPermission()
+                }
             case .codexEffort:
                 EffortTile(effort: codex.solEffort, connected: codex.connected) {
                     codex.cycleSolEffort()
@@ -129,6 +147,14 @@ struct ContentView: View {
             return name.uppercased()
         }
         return String(model.prefix(8)).uppercased()
+    }
+
+    private func permissionColor(_ permission: String) -> Color {
+        switch permission {
+        case "READ": Color(red: 0.40, green: 0.65, blue: 1)
+        case "FULL": Color(red: 1, green: 0.42, blue: 0.47)
+        default: Color(red: 0.39, green: 0.85, blue: 0.55)
+        }
     }
 }
 

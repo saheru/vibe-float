@@ -36,6 +36,8 @@ All task and usage data stays on your computer. Codex data comes from the local 
 | Module | What it shows | Action |
 |---|---|---|
 | Recent Tasks 1–8 | A configurable number of the most recently updated Codex or Claude sessions | Resume Codex/Claude CLI in Terminal or open Codex Desktop |
+| Codex · Model | The current Codex model | Click to switch the selected CLI session immediately |
+| Codex · Permissions | `READ`, `AUTO`, or `FULL` | Click to switch the selected CLI session immediately |
 | Codex · Sol Effort | The current Sol reasoning effort with level-specific colors | Click to cycle the effort |
 | Codex · 5h Usage | Live five-hour usage with a threshold-colored progress ring | Refreshes automatically |
 | Codex · Weekly Usage | Live weekly usage with a threshold-colored progress ring | Refreshes automatically |
@@ -54,6 +56,7 @@ Choose from 1–8 recent task cards and enable any combination of the remaining 
 - Codex CLI and desktop tasks are detected automatically: CLI tasks resume in a terminal with `codex resume <id>`, while desktop tasks open through `codex://threads/<id>`.
 - Live Codex and Claude sessions in Otty are matched by session ID and focused in their original pane. Terminal, iTerm2, Ghostty, Kitty, and WezTerm are available as configurable fallbacks.
 - Claude tasks open a terminal and run `claude --resume <session-id>`.
+- The macOS app, Windows app, and StreamDock plugin share one loopback-only App Server. CLI sessions resumed from a task card receive Model, Permission, and Sol Effort changes through `thread/settings/update` starting with their next turn.
 
 If the Codex child process exits, Vibe Float automatically reconnects every two seconds. Claude tasks remain available while Codex reconnects.
 
@@ -130,9 +133,11 @@ The repository also contains a generic StreamDock plugin for Codex and Claude Co
 - Separate Claude Model and Effort controls
 - Claude five-hour and weekly usage rings
 
+The desktop apps and plugin use a local-only shared Codex App Server. Codex CLI sessions opened or resumed from a task card connect to it, so model, reasoning-effort, and permission changes are applied to the selected session through `thread/settings/update`. A running turn keeps its original settings; the next turn uses the new values immediately. Standalone CLI sessions must be resumed from a task card once to opt in.
+
 Claude Model and Effort changes update `~/.claude/settings.json` for new Claude Code CLI sessions. Enable the local Status Line capture from a Claude Usage action's property inspector, then restart active Claude CLI sessions.
 
-The plugin detects Codex login identity changes. After you switch Codex accounts, it automatically restarts the local `app-server`, clears the previous account cache, and refreshes models plus 5h/weekly Usage without requiring you to re-add actions.
+The plugin detects Codex login identity changes. After you switch Codex accounts, it reconnects to the shared `app-server`, clears the previous account cache, and refreshes models plus 5h/weekly Usage without requiring you to re-add actions.
 
 ## Build from source
 

@@ -65,6 +65,8 @@
           <MenuItem x:Name="TaskCount8" Header="8 个" Tag="8" IsCheckable="True" Click="TaskCount_Click"/>
         </MenuItem>
         <MenuItem Header="显示模块">
+          <MenuItem x:Name="ModuleCodexModel" Header="Codex · Model" Tag="codexModel" IsCheckable="True" Click="ModuleToggle_Click"/>
+          <MenuItem x:Name="ModuleCodexPermission" Header="Codex · 权限" Tag="codexPermission" IsCheckable="True" Click="ModuleToggle_Click"/>
           <MenuItem x:Name="ModuleCodexEffort" Header="Codex · Sol Effort" Tag="codexEffort" IsCheckable="True" Click="ModuleToggle_Click"/>
           <MenuItem x:Name="ModuleCodexFiveHourUsage" Header="Codex · 5h Usage" Tag="codexFiveHourUsage" IsCheckable="True" Click="ModuleToggle_Click"/>
           <MenuItem x:Name="ModuleCodexUsage" Header="Codex · 周 Usage" Tag="codexUsage" IsCheckable="True" Click="ModuleToggle_Click"/>
@@ -158,6 +160,26 @@
             </Border>
             <TextBlock x:Name="TaskStatus7" Margin="0,8,0,0" TextAlignment="Center" FontSize="20" FontWeight="Black"/>
             <TextBlock x:Name="TaskProject7" Margin="0,5,0,0" TextAlignment="Center" FontSize="12" FontWeight="Black"/>
+          </StackPanel>
+        </Button>
+
+        <Button x:Name="CodexModelButton" Style="{StaticResource TileButton}" Click="CodexModel_Click">
+          <StackPanel>
+            <TextBlock Text="CX · MODEL" TextAlignment="Center" FontSize="18" FontWeight="Black"/>
+            <Border x:Name="CodexModelPill" Margin="0,18,0,0" Padding="10,7" CornerRadius="18" BorderThickness="2" BorderBrush="#FF35A7FF" Background="#2035A7FF">
+              <TextBlock x:Name="CodexModelText" Text="DEFAULT" TextAlignment="Center" FontSize="17" FontWeight="Black" Foreground="#FF35A7FF"/>
+            </Border>
+            <TextBlock Text="点击即时切换" Margin="0,13,0,0" Foreground="#78869B" TextAlignment="Center" FontSize="11"/>
+          </StackPanel>
+        </Button>
+
+        <Button x:Name="CodexPermissionButton" Style="{StaticResource TileButton}" Click="CodexPermission_Click">
+          <StackPanel>
+            <TextBlock Text="CX · PERM" TextAlignment="Center" FontSize="18" FontWeight="Black"/>
+            <Border x:Name="CodexPermissionPill" Margin="0,18,0,0" Padding="10,7" CornerRadius="18" BorderThickness="2">
+              <TextBlock x:Name="CodexPermissionText" Text="AUTO" TextAlignment="Center" FontSize="17" FontWeight="Black"/>
+            </Border>
+            <TextBlock Text="点击即时切换" Margin="0,13,0,0" Foreground="#78869B" TextAlignment="Center" FontSize="11"/>
           </StackPanel>
         </Button>
 

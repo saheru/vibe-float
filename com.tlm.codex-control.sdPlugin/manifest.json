@@ -15,7 +15,7 @@
     {
       "UUID": "com.tlm.codex-control.model",
       "Name": "Codex 模型与推理层级",
-      "Tooltip": "旋转切换模型；按住旋转切换推理层级",
+      "Tooltip": "旋转即时切换当前 CLI 模型；按住旋转切换推理层级",
       "Icon": "static/model.png",
       "States": [{ "Image": "static/model.png", "ShowTitle": false }],
       "Settings": {},
@@ -27,7 +27,7 @@
     {
       "UUID": "com.tlm.codex-control.permission",
       "Name": "Codex 权限",
-      "Tooltip": "旋转切换只读、工作区、完全访问权限",
+      "Tooltip": "旋转即时切换当前 CLI 的只读、工作区、完全访问权限",
       "Icon": "static/permission.png",
       "States": [{ "Image": "static/permission.png", "ShowTitle": false }],
       "Settings": {},
@@ -39,7 +39,7 @@
     {
       "UUID": "com.tlm.codex-control.currentmodel",
       "Name": "当前 Codex 模型",
-      "Tooltip": "屏幕显示当前模型和推理层级；按下切换模型",
+      "Tooltip": "屏幕显示当前模型和推理层级；按下即时切换当前 CLI 模型",
       "Icon": "static/model.png",
       "States": [{ "Image": "static/model.png", "ShowTitle": false }],
       "Settings": {},
@@ -51,7 +51,7 @@
     {
       "UUID": "com.tlm.codex-control.currentpermission",
       "Name": "当前 Codex 权限",
-      "Tooltip": "屏幕显示当前权限；按下切换权限",
+      "Tooltip": "屏幕显示当前权限；按下即时切换当前 CLI 权限",
       "Icon": "static/permission.png",
       "States": [{ "Image": "static/permission.png", "ShowTitle": false }],
       "Settings": {},
@@ -166,7 +166,7 @@
   "CodePathWin": "plugin/index.js",
   "Description": "面向 StreamDock 设备的 Codex 与 Claude Code 任务、模型、推理强度和 Usage 控制台",
   "Category": "Vibe Float",
-  "Version": "0.8.5",
+  "Version": "0.8.6",
   "URL": "https://github.com/saheru/vibe-float",
   "OS": [
     { "Platform": "mac", "MinimumVersion": "10.15" },

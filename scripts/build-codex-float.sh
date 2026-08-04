@@ -36,7 +36,7 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
   <key>CFBundleDisplayName</key><string>Vibe Float</string>
   <key>CFBundleIconFile</key><string>CodexFloat</string>
   <key>CFBundlePackageType</key><string>APPL</string>
-  <key>CFBundleShortVersionString</key><string>0.5.5</string>
+  <key>CFBundleShortVersionString</key><string>0.5.6</string>
   <key>CFBundleVersion</key><string>19</string>
   <key>LSMinimumSystemVersion</key><string>14.0</string>
   <key>LSUIElement</key><true/>

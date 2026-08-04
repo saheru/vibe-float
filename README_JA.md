@@ -36,6 +36,8 @@ Vibe Float は、**macOS 向け SwiftUI アプリ**と**Windows 向け WPF ア�
 | モジュール | 表示内容 | 操作 |
 |---|---|---|
 | 最近のタスク 1～8 | 表示数を設定できる、更新日時が新しい Codex / Claude セッション | Codex/Claude CLI をターミナルで再開、または Codex Desktop を開く |
+| Codex · Model | 現在の Codex モデル | 選択中の CLI セッションをクリックで即時切り替え |
+| Codex · 権限 | `READ`、`AUTO`、`FULL` | 選択中の CLI セッションをクリックで即時切り替え |
 | Codex · Sol Effort | 現在の Sol 推論強度をレベル別の色で表示 | クリックして切り替え |
 | Codex · 5h Usage | 5 時間制限をしきい値で色が変わる進捗リングで表示 | 自動更新 |
 | Codex · 週間 Usage | しきい値で色が変わる進捗リング | 自動更新 |
@@ -54,6 +56,7 @@ Vibe Float は、**macOS 向け SwiftUI アプリ**と**Windows 向け WPF ア�
 - Codex CLI とデスクトップのタスクを自動判別します。CLI タスクはターミナルで `codex resume <id>` を実行し、デスクトップのタスクは `codex://threads/<id>` で開きます。
 - Otty で実行中の Codex / Claude セッションはセッション ID で照合し、元のペインへ正確に切り替えます。Terminal、iTerm2、Ghostty、Kitty、WezTerm も選択できます。
 - Claude タスクはターミナルで `claude --resume <session-id>` を実行します。
+- macOS App、Windows App、StreamDock プラグインはループバック専用の App Server を共有します。タスクカードから再開した CLI セッションでは、Model、権限、Sol Effort の変更が `thread/settings/update` により次の Turn から反映されます。
 
 Codex の子プロセスが終了した場合は 2 秒ごとに自動再接続します。再接続中も Claude タスクは引き続き表示されます。
 
@@ -130,9 +133,11 @@ flowchart LR
 - Claude Model / Effort の個別操作
 - Claude の 5 時間・週間 Usage リング
 
+デスクトップアプリとプラグインはローカル専用の共有 Codex App Server を使用します。タスクカードから開く、または再開した Codex CLI セッションはこのサーバーへ接続するため、Model、Reasoning Effort、権限の変更を `thread/settings/update` で選択中のセッションへ反映できます。実行中の Turn は元の設定を維持し、次の Turn から新しい設定が即時に使われます。単独で起動した CLI セッションは、一度タスクカードから再開すると対象になります。
+
 Claude Model / Effort は `~/.claude/settings.json` に保存され、新しい Claude Code CLI セッションへ反映されます。Claude Usage アクションのプロパティ画面でローカル Status Line 取得を有効にし、実行中の Claude CLI セッションを再起動してください。
 
-プラグインは Codex のログイン ID 変更を検出します。Codex アカウントを切り替えると、ローカル `app-server` を自動再起動し、以前のアカウントキャッシュを消去して、モデルと 5h／週間 Usage を更新します。アクションを追加し直す必要はありません。
+プラグインは Codex のログイン ID 変更を検出します。Codex アカウントを切り替えると、共有 `app-server` へ自動的に再接続し、以前のアカウントキャッシュを消去して、モデルと 5h／週間 Usage を更新します。アクションを追加し直す必要はありません。
 
 ## ソースからビルド
 

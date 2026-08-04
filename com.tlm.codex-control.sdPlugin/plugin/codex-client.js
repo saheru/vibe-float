@@ -4,6 +4,7 @@ const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 const readline = require("node:readline");
+const WebSocket = require("ws");
 const { log } = require("./utils/plugin");
 
 const PERMISSIONS = [
@@ -18,6 +19,8 @@ class CodexClient {
     this.authPath = options.authPath || defaultAuthPath();
     this.authFingerprint = readAuthFingerprint(this.authPath);
     this.proc = null;
+    this.socket = null;
+    this.sharedTransport = null;
     this.starting = null;
     this.accountTransition = null;
     this.accountDirty = false;
@@ -29,6 +32,7 @@ class CodexClient {
     this.threads = [];
     this.rateLimits = null;
     this.onThreadEvent = options.onThreadEvent || null;
+    this.preferSharedServer = options.preferSharedServer !== false;
   }
 
   async start() {
@@ -46,7 +50,62 @@ class CodexClient {
   }
 
   async startProcess() {
-    if (this.proc) return;
+    if (this.proc || this.socket) return;
+    if (this.preferSharedServer) {
+      try {
+        await this.startSharedProcess();
+        return;
+      } catch (error) {
+        log.info("Codex shared app-server unavailable; falling back to stdio", error.message);
+        this.closeSocket();
+      }
+    }
+    await this.startStdioProcess();
+  }
+
+  async startSharedProcess() {
+    const transport = sharedTransport();
+    let socket;
+    try {
+      socket = await connectWebSocket(transport.clientUrl);
+    } catch {
+      if (transport.socketPath) {
+        try { fs.unlinkSync(transport.socketPath); } catch (error) {
+          if (error?.code !== "ENOENT") throw error;
+        }
+      }
+      const host = spawn(this.codexPath, ["app-server", "--listen", transport.listenUrl], {
+        stdio: "ignore",
+        env: process.env,
+        detached: true,
+        windowsHide: true
+      });
+      // `connectWebSocket` below reports startup failures through the normal
+      // fallback path. Consume the child error so an invalid custom Codex path
+      // cannot become an uncaught EventEmitter error.
+      host.on("error", () => {});
+      host.unref();
+      socket = await retry(() => connectWebSocket(transport.clientUrl), 80, 50);
+    }
+
+    this.socket = socket;
+    this.sharedTransport = transport;
+    socket.on("message", data => this.onLine(data.toString()));
+    socket.on("error", error => {
+      if (this.socket === socket) log.error("Codex shared app-server socket", error);
+    });
+    socket.on("close", () => {
+      if (this.socket !== socket) return;
+      const error = new Error("Codex shared app-server disconnected");
+      this.socket = null;
+      this.sharedTransport = null;
+      this.ready = false;
+      this.failAll(error);
+    });
+    await this.initialize();
+  }
+
+  async startStdioProcess() {
     const proc = spawn(this.codexPath, ["app-server"], {
       stdio: ["pipe", "pipe", "pipe"],
       env: process.env,
@@ -63,8 +122,12 @@ class CodexClient {
     });
     proc.stderr.on("data", data => log.info("codex", data.toString().trim()));
     readline.createInterface({ input: proc.stdout }).on("line", line => this.onLine(line));
+    await this.initialize();
+  }
+
+  async initialize() {
     await this.request("initialize", {
-      clientInfo: { name: "streamdock_vibe_control", title: "StreamDock Vibe Control", version: "0.8.5" },
+      clientInfo: { name: "streamdock_vibe_control", title: "StreamDock Vibe Control", version: "0.8.6" },
       capabilities: { experimentalApi: true }
     });
     this.notify("initialized", {});
@@ -77,9 +140,20 @@ class CodexClient {
   stop() {
     const proc = this.proc;
     this.proc = null;
+    this.closeSocket();
     this.ready = false;
     this.failAll(new Error("Codex app-server stopped"));
     if (proc) proc.kill();
+  }
+
+  closeSocket() {
+    const socket = this.socket;
+    this.socket = null;
+    this.sharedTransport = null;
+    if (socket) {
+      socket.removeAllListeners();
+      try { socket.close(); } catch {}
+    }
   }
 
   onLine(line) {
@@ -106,8 +180,16 @@ class CodexClient {
   }
 
   send(message) {
+    if (this.socket?.readyState === WebSocket.OPEN) {
+      this.socket.send(JSON.stringify(message));
+      return;
+    }
     if (!this.proc?.stdin.writable) throw new Error("Codex app-server is not running");
     this.proc.stdin.write(`${JSON.stringify(message)}\n`);
+  }
+
+  remoteAddress() {
+    return this.sharedTransport?.remoteAddress || null;
   }
 
   request(method, params) {
@@ -245,7 +327,7 @@ class CodexClient {
     return index >= 0 ? index : 1;
   }
 
-  async rotateEffort(ticks) {
+  async rotateEffort(ticks, threadId = null) {
     const model = this.currentModel();
     const values = (model?.supportedReasoningEfforts || []).map(item => item.reasoningEffort);
     const efforts = values.length ? values : ["low", "medium", "high", "xhigh"];
@@ -253,10 +335,11 @@ class CodexClient {
     const next = efforts[wrap(current + Math.sign(ticks), efforts.length)];
     await this.writeConfig([{ keyPath: "model_reasoning_effort", value: next }]);
     this.config.model_reasoning_effort = next;
+    await this.updateThreadSettings(threadId, { effort: next });
     return next;
   }
 
-  async rotateModel(ticks) {
+  async rotateModel(ticks, threadId = null) {
     if (!this.models.length) await this.refreshStatic();
     const currentId = this.currentModel()?.model;
     const current = Math.max(0, this.models.findIndex(model => model.model === currentId));
@@ -269,10 +352,11 @@ class CodexClient {
     ]);
     this.config.model = model.model;
     this.config.model_reasoning_effort = effort;
+    await this.updateThreadSettings(threadId, { model: model.model, effort });
     return model;
   }
 
-  async rotateSolEffort(ticks) {
+  async rotateSolEffort(ticks, threadId = null) {
     if (!this.models.length) await this.refreshStatic();
     const model = this.solModel();
     if (!model) throw new Error("当前 Codex 账号没有可用的 Sol 模型");
@@ -286,10 +370,11 @@ class CodexClient {
     ]);
     this.config.model = model.model;
     this.config.model_reasoning_effort = effort;
+    await this.updateThreadSettings(threadId, { model: model.model, effort });
     return { model, effort };
   }
 
-  async rotatePermission(ticks) {
+  async rotatePermission(ticks, threadId = null) {
     const nextIndex = wrap(this.currentPermissionIndex() + Math.sign(ticks), PERMISSIONS.length);
     const permission = PERMISSIONS[nextIndex];
     await this.writeConfig([
@@ -298,7 +383,27 @@ class CodexClient {
     ]);
     this.config.sandbox_mode = permission.sandbox;
     this.config.approval_policy = permission.approval;
+    await this.updateThreadSettings(threadId, {
+      approvalPolicy: permission.approval,
+      sandboxPolicy: sandboxPolicy(permission.sandbox)
+    });
     return permission;
+  }
+
+  async updateThreadSettings(threadId, settings) {
+    if (!threadId || !this.sharedTransport) return false;
+    try {
+      await this.request("thread/settings/update", { threadId, ...settings });
+      return true;
+    } catch (error) {
+      // Standalone CLI sessions do not live in our shared app-server. The
+      // global config write above still becomes the default for new sessions.
+      if (/thread not found|method not found|unknown method/i.test(error.message)) {
+        log.info("Codex thread settings not applied", threadId, error.message);
+        return false;
+      }
+      throw error;
+    }
   }
 
   async writeConfig(edits) {
@@ -308,6 +413,56 @@ class CodexClient {
     });
   }
 
+}
+
+function sharedTransport() {
+  // TCP loopback is used on both platforms so the SwiftUI app, WPF app,
+  // StreamDock plugin, and their Codex TUI children can share one server.
+  const endpoint = process.env.VIBE_CODEX_APP_SERVER || "ws://127.0.0.1:45876";
+  return { listenUrl: endpoint, clientUrl: endpoint, remoteAddress: endpoint };
+}
+
+function connectWebSocket(url) {
+  return new Promise((resolve, reject) => {
+    const socket = new WebSocket(url, { handshakeTimeout: 2000, perMessageDeflate: false });
+    let settled = false;
+    const onOpen = () => {
+      settled = true;
+      cleanup();
+      resolve(socket);
+    };
+    const onError = error => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      try { socket.terminate(); } catch {}
+      reject(error);
+    };
+    const onClose = () => onError(new Error("Codex shared app-server closed during connection"));
+    const cleanup = () => {
+      socket.off("open", onOpen);
+      socket.off("error", onError);
+      socket.off("close", onClose);
+    };
+    socket.once("open", onOpen);
+    socket.once("error", onError);
+    socket.once("close", onClose);
+  });
+}
+
+async function retry(operation, attempts, delayMs) {
+  let lastError;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try { return await operation(); } catch (error) { lastError = error; }
+    await new Promise(resolve => setTimeout(resolve, delayMs));
+  }
+  throw lastError || new Error("Codex shared app-server did not start");
+}
+
+function sandboxPolicy(mode) {
+  if (mode === "read-only") return { type: "readOnly" };
+  if (mode === "danger-full-access") return { type: "dangerFullAccess" };
+  return { type: "workspaceWrite" };
 }
 
 function findCodex() {

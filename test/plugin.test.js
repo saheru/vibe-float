@@ -59,6 +59,25 @@ test("manifest defines task, knobs, current-state buttons and usage actions", ()
   assert.deepEqual(manifest.Actions.find(action => action.UUID.endsWith(".soleffort")).Controllers, ["Knob", "Keypad"]);
 });
 
+test("desktop apps expose shared CLI model and permission controls", () => {
+  const swiftService = fs.readFileSync(path.join(__dirname,
+    "../macos/CodexFloat/Sources/CodexFloat/CodexService.swift"), "utf8");
+  const swiftModules = fs.readFileSync(path.join(__dirname,
+    "../macos/CodexFloat/Sources/CodexFloat/ModuleSettings.swift"), "utf8");
+  const windowsClient = fs.readFileSync(path.join(__dirname,
+    "../windows/CodexFloat/CodexClient.cs"), "utf8");
+  const windowsView = fs.readFileSync(path.join(__dirname,
+    "../windows/CodexFloat/MainWindow.xaml"), "utf8");
+
+  assert.match(swiftService, /thread\/settings\/update/);
+  assert.match(swiftService, /--remote/);
+  assert.match(swiftModules, /case codexModel/);
+  assert.match(swiftModules, /case codexPermission/);
+  assert.match(windowsClient, /ClientWebSocket/);
+  assert.match(windowsView, /CodexModelButton/);
+  assert.match(windowsView, /CodexPermissionButton/);
+});
+
 test("Sol control selects Sol and advances only its supported effort", async () => {
   const client = new CodexClient({ codexPath: process.execPath });
   client.models = [{
@@ -81,6 +100,42 @@ test("Sol control selects Sol and advances only its supported effort", async () 
   assert.equal(client.config.model, "gpt-5.6-sol");
   assert.equal(client.config.model_reasoning_effort, "high");
   assert.deepEqual(edits.map(edit => edit.value), ["gpt-5.6-sol", "high"]);
+});
+
+test("Codex thread settings update changes subsequent turns on the shared CLI server", async () => {
+  const client = new CodexClient({ codexPath: process.execPath });
+  client.sharedTransport = { remoteAddress: "unix:///tmp/codex.sock" };
+  let request;
+  client.request = async (method, params) => { request = { method, params }; return {}; };
+
+  assert.equal(await client.updateThreadSettings("thread-1", {
+    model: "gpt-5.6-sol",
+    effort: "high"
+  }), true);
+  assert.deepEqual(request, {
+    method: "thread/settings/update",
+    params: { threadId: "thread-1", model: "gpt-5.6-sol", effort: "high" }
+  });
+});
+
+test("permission rotation maps config values to app-server sandbox policies", async () => {
+  const client = new CodexClient({ codexPath: process.execPath });
+  client.config = { sandbox_mode: "workspace-write", approval_policy: "on-request" };
+  let configEdits;
+  let threadUpdate;
+  client.writeConfig = async edits => { configEdits = edits; };
+  client.updateThreadSettings = async (threadId, settings) => { threadUpdate = { threadId, settings }; };
+
+  const permission = await client.rotatePermission(1, "thread-1");
+  assert.equal(permission.sandbox, "danger-full-access");
+  assert.deepEqual(configEdits.map(edit => edit.value), ["danger-full-access", "never"]);
+  assert.deepEqual(threadUpdate, {
+    threadId: "thread-1",
+    settings: {
+      approvalPolicy: "never",
+      sandboxPolicy: { type: "dangerFullAccess" }
+    }
+  });
 });
 
 test("Sol effort levels use distinct colors", () => {

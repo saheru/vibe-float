@@ -9,6 +9,8 @@ enum DashboardModule: String, CaseIterable, Identifiable {
     case task6
     case task7
     case task8
+    case codexModel
+    case codexPermission
     case codexEffort
     case codexFiveHourUsage
     case codexUsage
@@ -28,6 +30,8 @@ enum DashboardModule: String, CaseIterable, Identifiable {
         case .task6: "最近任务 6"
         case .task7: "最近任务 7"
         case .task8: "最近任务 8"
+        case .codexModel: "Codex · Model"
+        case .codexPermission: "Codex · 权限"
         case .codexEffort: "Codex · Sol Effort"
         case .codexFiveHourUsage: "Codex · 5h Usage"
         case .codexUsage: "Codex · 周 Usage"
@@ -74,6 +78,12 @@ final class ModuleSettings: ObservableObject {
         if !defaults.bool(forKey: "vibeFloat.didAddCodexFiveHourUsage") {
             enabled.insert(.codexFiveHourUsage)
             defaults.set(true, forKey: "vibeFloat.didAddCodexFiveHourUsage")
+            persistEnabled()
+        }
+        if !defaults.bool(forKey: "vibeFloat.didAddCodexSessionControls") {
+            enabled.insert(.codexModel)
+            enabled.insert(.codexPermission)
+            defaults.set(true, forKey: "vibeFloat.didAddCodexSessionControls")
             persistEnabled()
         }
     }
