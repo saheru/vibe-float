@@ -1,0 +1,40 @@
+name: Build macOS
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+    paths:
+      - "macos/**"
+      - "assets/**"
+      - "scripts/build-codex-float.sh"
+      - "scripts/build-icons.sh"
+      - ".github/workflows/build-macos.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-macos:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build universal macOS app
+        run: ./scripts/build-codex-float.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Vibe-Float-macOS
+          path: |
+            dist/Vibe-Float-macOS.dmg
+            dist/Vibe-Float-macOS.zip
+
+      - name: Upload tagged release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/Vibe-Float-macOS.dmg
+            dist/Vibe-Float-macOS.zip
