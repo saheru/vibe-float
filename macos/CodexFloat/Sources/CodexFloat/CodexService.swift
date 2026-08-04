@@ -89,7 +89,7 @@ final class CodexService: ObservableObject {
                 "clientInfo": [
                     "name": "vibe_float",
                     "title": "Vibe Float",
-                    "version": "0.5.2"
+                    "version": "0.5.3"
                 ],
                 "capabilities": ["experimentalApi": true]
             ]) { [weak self] result in
@@ -133,17 +133,14 @@ final class CodexService: ObservableObject {
         connected = false
     }
 
-    func openTask(_ task: VibeTask) {
+    func openTask(_ task: VibeTask, terminal: TerminalPreference = .automatic) {
         switch task.provider {
         case .codex:
             if task.codexSurface == .cli {
                 let cwd = task.cwd.isEmpty ? FileManager.default.homeDirectoryForCurrentUser.path : task.cwd
                 let executable = (try? findCodex()) ?? "codex"
                 let command = "cd \(shellQuote(cwd)) && \(shellQuote(executable)) resume \(shellQuote(task.id))"
-                let escaped = command
-                    .replacingOccurrences(of: "\\", with: "\\\\")
-                    .replacingOccurrences(of: "\"", with: "\\\"")
-                NSAppleScript(source: "tell application \"Terminal\" to do script \"\(escaped)\"")?.executeAndReturnError(nil)
+                TerminalRouter.openSession(id: task.id, provider: .codex, cwd: cwd, command: command, preference: terminal)
                 return
             }
             guard let encoded = task.id.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed),
@@ -152,10 +149,7 @@ final class CodexService: ObservableObject {
         case .claude:
             let cwd = task.cwd.isEmpty ? FileManager.default.homeDirectoryForCurrentUser.path : task.cwd
             let command = "cd \(shellQuote(cwd)) && claude --resume \(shellQuote(task.id))"
-            let escaped = command
-                .replacingOccurrences(of: "\\", with: "\\\\")
-                .replacingOccurrences(of: "\"", with: "\\\"")
-            NSAppleScript(source: "tell application \"Terminal\" to do script \"\(escaped)\"")?.executeAndReturnError(nil)
+            TerminalRouter.openSession(id: task.id, provider: .claude, cwd: cwd, command: command, preference: terminal)
         }
     }
 

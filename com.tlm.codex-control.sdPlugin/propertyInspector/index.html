@@ -39,6 +39,18 @@
       <input id="notifyInput" type="checkbox" checked>
       需要回复时播放提示音并通知
     </label>
+    <label id="terminalRow" hidden>
+      CLI 任务终端
+      <select id="terminal">
+        <option value="auto">自动识别（推荐）</option>
+        <option value="otty">Otty</option>
+        <option value="terminal">Terminal</option>
+        <option value="iterm2">iTerm2</option>
+        <option value="ghostty">Ghostty</option>
+        <option value="kitty">Kitty</option>
+        <option value="wezterm">WezTerm</option>
+      </select>
+    </label>
     <label id="codexPathRow">
       Codex 可执行文件
       <input id="codexPath" placeholder="留空自动发现 codex">

@@ -52,6 +52,7 @@
 - 拖动右下角的白色缩放手柄等比调整大小。
 - 右键面板可立即刷新或退出。
 - 自动区分 Codex CLI 与桌面任务：CLI 任务在终端通过 `codex resume <id>` 恢复，桌面任务通过 `codex://threads/<id>` 打开 Codex Desktop。
+- 支持自动识别 Otty 中正在运行的 Codex / Claude 会话并精确切回原标签页；也可选择 Terminal、iTerm2、Ghostty、Kitty 或 WezTerm 作为 CLI 任务终端。
 - Claude 任务通过 `claude --resume <session-id>` 在终端恢复。
 - 点击 Sol 卡片会更新 Codex 用户配置，新建 Codex CLI 任务也会使用新的模型和 effort。
 - Claude Model 与 Effort 卡片会更新 `~/.claude/settings.json`，供新建 Claude Code 会话使用。

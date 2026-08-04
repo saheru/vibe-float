@@ -63,7 +63,7 @@ class CodexClient {
     proc.stderr.on("data", data => log.info("codex", data.toString().trim()));
     readline.createInterface({ input: proc.stdout }).on("line", line => this.onLine(line));
     await this.request("initialize", {
-      clientInfo: { name: "streamdock_vibe_control", title: "StreamDock Vibe Control", version: "0.8.2" },
+      clientInfo: { name: "streamdock_vibe_control", title: "StreamDock Vibe Control", version: "0.8.3" },
       capabilities: { experimentalApi: true }
     });
     this.notify("initialized", {});

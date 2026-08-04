@@ -51,6 +51,7 @@ Choose from 1–8 recent task cards and enable any combination of the remaining 
 - An orange **CLAUDE** badge and `CLAUDE·PROJECT` label identify Claude tasks.
 - State colors remain independent: running, waiting for input, completed, or failed.
 - Codex CLI and desktop tasks are detected automatically: CLI tasks resume in a terminal with `codex resume <id>`, while desktop tasks open through `codex://threads/<id>`.
+- Live Codex and Claude sessions in Otty are matched by session ID and focused in their original pane. Terminal, iTerm2, Ghostty, Kitty, and WezTerm are available as configurable fallbacks.
 - Claude tasks open a terminal and run `claude --resume <session-id>`.
 
 If the Codex child process exits, Vibe Float automatically reconnects every two seconds. Claude tasks remain available while Codex reconnects.

@@ -56,9 +56,11 @@ enum DashboardModule: String, CaseIterable, Identifiable {
 final class ModuleSettings: ObservableObject {
     @Published private(set) var enabled: Set<DashboardModule>
     @Published private(set) var taskCount: Int
+    @Published private(set) var preferredTerminal: TerminalPreference
     private let defaults = UserDefaults.standard
     private let key = "vibeFloat.enabledModules"
     private let taskCountKey = "vibeFloat.taskCount"
+    private let terminalKey = "vibeFloat.preferredTerminal"
 
     init() {
         if let stored = defaults.array(forKey: key) as? [String] {
@@ -68,6 +70,7 @@ final class ModuleSettings: ObservableObject {
         }
         let storedCount = defaults.integer(forKey: taskCountKey)
         taskCount = storedCount == 0 ? 3 : min(8, max(1, storedCount))
+        preferredTerminal = TerminalPreference(rawValue: defaults.string(forKey: terminalKey) ?? "") ?? .automatic
         if !defaults.bool(forKey: "vibeFloat.didAddCodexFiveHourUsage") {
             enabled.insert(.codexFiveHourUsage)
             defaults.set(true, forKey: "vibeFloat.didAddCodexFiveHourUsage")
@@ -93,6 +96,11 @@ final class ModuleSettings: ObservableObject {
     func setTaskCount(_ count: Int) {
         taskCount = min(8, max(1, count))
         defaults.set(taskCount, forKey: taskCountKey)
+    }
+
+    func setPreferredTerminal(_ terminal: TerminalPreference) {
+        preferredTerminal = terminal
+        defaults.set(terminal.rawValue, forKey: terminalKey)
     }
 
     var ordered: [DashboardModule] {

@@ -12,6 +12,7 @@ const {
   effortColor
 } = require("./render");
 const { collectStatusNotifications, formatStatusNotification } = require("./notifications");
+const { openAgentSession } = require("./terminal-router");
 const { spawn } = require("node:child_process");
 
 const plugin = new Plugins();
@@ -230,10 +231,11 @@ function commonAction(type, defaults = {}) {
 
 plugin.task = commonAction("task", { slot: 0, notifyDone: true, notifyInput: true });
 plugin.task.keyUp = ({ context }) => {
-  const slot = Number(plugin.task.data[context]?.slot || 0);
+  const actionSettings = plugin.task.data[context] || {};
+  const slot = Number(actionSettings.slot || 0);
   const thread = snapshot.threads[slot];
   if (!thread) return plugin.showAlert(context);
-  openCodexThread(thread);
+  openCodexThread(thread, actionSettings.terminal || "auto");
   plugin.showOk(context);
 };
 
@@ -340,10 +342,11 @@ plugin.usageweek.keyUp = refreshUsage;
 
 plugin.claudetask = commonAction("claudetask", { slot: 0, notifyDone: true, notifyInput: true });
 plugin.claudetask.keyUp = ({ context }) => {
-  const slot = Number(plugin.claudetask.data[context]?.slot || 0);
+  const actionSettings = plugin.claudetask.data[context] || {};
+  const slot = Number(actionSettings.slot || 0);
   const thread = snapshot.claude.threads[slot];
   if (!thread) return plugin.showAlert(context);
-  openClaudeThread(thread);
+  openClaudeThread(thread, actionSettings.terminal || "auto");
   plugin.showOk(context);
 };
 
@@ -395,9 +398,9 @@ plugin.didReceiveGlobalSettings = ({ payload }) => {
 
 process.on("exit", () => codex.stop());
 
-function openCodexThread(thread) {
+function openCodexThread(thread, terminal = "auto") {
   if (String(thread?.source || "").toLowerCase() === "cli") {
-    openCodexCliThread(thread);
+    openCodexCliThread(thread, terminal);
     return;
   }
   const url = `codex://threads/${encodeURIComponent(thread.id)}`;
@@ -416,51 +419,17 @@ function openCodexThread(thread) {
   }
 }
 
-function openCodexCliThread(thread) {
+function openCodexCliThread(thread, terminal = "auto") {
   const cwd = thread.cwd || process.env.HOME || process.env.USERPROFILE || ".";
   const changeDirectory = process.platform === "win32" ? `cd /d ${shellQuote(cwd)}` : `cd ${shellQuote(cwd)}`;
   const command = `${changeDirectory} && ${shellQuote(codex.codexPath || "codex")} resume ${shellQuote(thread.id)}`;
-  try {
-    if (process.platform === "darwin") {
-      const script = `tell application "Terminal" to do script "${appleScriptText(command)}"`;
-      spawn("/usr/bin/osascript", ["-e", script], { detached: true, stdio: "ignore" }).unref();
-      return;
-    }
-    if (process.platform === "win32") {
-      spawn("cmd.exe", ["/d", "/s", "/c", "start", "Codex CLI", "cmd.exe", "/k", command], {
-        detached: true,
-        stdio: "ignore",
-        windowsHide: true
-      }).unref();
-      return;
-    }
-    spawn("x-terminal-emulator", ["-e", command], { detached: true, stdio: "ignore" }).unref();
-  } catch (error) {
-    log.error("open Codex CLI task", error);
-  }
+  openAgentSession({ id: thread.id, provider: "codex", cwd, command, preference: terminal, log });
 }
 
-function openClaudeThread(thread) {
+function openClaudeThread(thread, terminal = "auto") {
   const cwd = thread.cwd || process.env.HOME || process.env.USERPROFILE || ".";
   const command = `cd ${shellQuote(cwd)} && claude --resume ${shellQuote(thread.id)}`;
-  try {
-    if (process.platform === "darwin") {
-      const script = `tell application "Terminal" to do script "${appleScriptText(command)}"`;
-      spawn("/usr/bin/osascript", ["-e", script], { detached: true, stdio: "ignore" }).unref();
-      return;
-    }
-    if (process.platform === "win32") {
-      spawn("cmd.exe", ["/d", "/s", "/c", "start", "Claude", "cmd.exe", "/k", command], {
-        detached: true,
-        stdio: "ignore",
-        windowsHide: true
-      }).unref();
-      return;
-    }
-    spawn("x-terminal-emulator", ["-e", command], { detached: true, stdio: "ignore" }).unref();
-  } catch (error) {
-    log.error("open Claude task", error);
-  }
+  openAgentSession({ id: thread.id, provider: "claude", cwd, command, preference: terminal, log });
 }
 
 function notifyStatusChanges() {

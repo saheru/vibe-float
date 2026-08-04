@@ -45,6 +45,19 @@ struct VibeFloatApp: App {
                     )
                 }
             }
+            Menu("CLI 终端") {
+                ForEach(TerminalPreference.allCases) { terminal in
+                    Button {
+                        modules.setPreferredTerminal(terminal)
+                    } label: {
+                        if modules.preferredTerminal == terminal {
+                            Label(terminal.title, systemImage: "checkmark")
+                        } else {
+                            Text(terminal.title)
+                        }
+                    }
+                }
+            }
             Menu("Claude") {
                 Button("启用 Usage 采集") {
                     codex.installClaudeUsageCapture()

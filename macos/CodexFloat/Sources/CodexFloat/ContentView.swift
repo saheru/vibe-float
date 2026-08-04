@@ -82,7 +82,7 @@ struct ContentView: View {
         if let index = module.taskIndex {
             if index < codex.tasks.count {
                 TaskTile(task: codex.tasks[index], index: index) {
-                    codex.openTask(codex.tasks[index])
+                    codex.openTask(codex.tasks[index], terminal: modules.preferredTerminal)
                 }
             } else {
                 EmptyTaskTile(index: index)

@@ -34,11 +34,13 @@ function connectElgatoStreamDeckSocket(port, inPropertyInspectorUuid, registerEv
   $("slotRow").hidden = !taskAction;
   $("notifyDoneRow").hidden = !taskAction;
   $("notifyInputRow").hidden = !taskAction;
+  $("terminalRow").hidden = !taskAction;
   $("codexPathRow").hidden = claudeAction;
   $("enableClaudeUsage").hidden = !claudeUsageAction;
   $("slot").value = String(settings.slot || 0);
   $("notifyDone").checked = settings.notifyDone !== false;
   $("notifyInput").checked = settings.notifyInput !== false;
+  $("terminal").value = settings.terminal || "auto";
   $("codexPath").value = settings.codexPath || "";
   $("hint").textContent = hints[kind] || "";
 
@@ -51,6 +53,7 @@ function connectElgatoStreamDeckSocket(port, inPropertyInspectorUuid, registerEv
       $("slot").value = String(settings.slot || 0);
       $("notifyDone").checked = settings.notifyDone !== false;
       $("notifyInput").checked = settings.notifyInput !== false;
+      $("terminal").value = settings.terminal || "auto";
       $("codexPath").value = settings.codexPath || "";
     }
     if (message.event === "sendToPropertyInspector") {
@@ -69,12 +72,14 @@ function save() {
   settings.notifyDone = $("notifyDone").checked;
   settings.notifyInput = $("notifyInput").checked;
   settings.codexPath = $("codexPath").value.trim();
+  settings.terminal = $("terminal").value;
   socket?.send(JSON.stringify({ event: "setSettings", context: uuid, payload: settings }));
 }
 
 $("slot").addEventListener("change", save);
 $("notifyDone").addEventListener("change", save);
 $("notifyInput").addEventListener("change", save);
+$("terminal").addEventListener("change", save);
 $("codexPath").addEventListener("change", save);
 $("enableClaudeUsage").addEventListener("click", () => {
   socket?.send(JSON.stringify({

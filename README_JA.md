@@ -51,6 +51,7 @@ Vibe Float は、**macOS 向け SwiftUI アプリ**と**Windows 向け WPF ア�
 - Claude はオレンジ色の **CLAUDE** バッジと `CLAUDE·PROJECT` で表示します。
 - 実行中、入力待ち、完了、エラーの状態色はタスク種別と独立しています。
 - Codex CLI とデスクトップのタスクを自動判別します。CLI タスクはターミナルで `codex resume <id>` を実行し、デスクトップのタスクは `codex://threads/<id>` で開きます。
+- Otty で実行中の Codex / Claude セッションはセッション ID で照合し、元のペインへ正確に切り替えます。Terminal、iTerm2、Ghostty、Kitty、WezTerm も選択できます。
 - Claude タスクはターミナルで `claude --resume <session-id>` を実行します。
 
 Codex の子プロセスが終了した場合は 2 秒ごとに自動再接続します。再接続中も Claude タスクは引き続き表示されます。

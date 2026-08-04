@@ -28,6 +28,7 @@ const {
   effortColor
 } = require("../com.tlm.codex-control.sdPlugin/plugin/render");
 const { collectStatusNotifications, formatStatusNotification } = require("../com.tlm.codex-control.sdPlugin/plugin/notifications");
+const { TERMINALS } = require("../com.tlm.codex-control.sdPlugin/plugin/terminal-router");
 
 test("manifest defines task, knobs, current-state buttons and usage actions", () => {
   const manifest = JSON.parse(fs.readFileSync(path.join(__dirname, "../com.tlm.codex-control.sdPlugin/manifest.json")));
@@ -293,6 +294,10 @@ test("task cards distinguish Codex CLI and desktop origins", () => {
   assert.match(appSvg, /CODEX APP/);
 });
 
+test("terminal routing exposes automatic and common terminal choices", () => {
+  assert.deepEqual(TERMINALS, ["auto", "otty", "terminal", "iterm2", "ghostty", "kitty", "wezterm"]);
+});
+
 test("Claude client scans CLI sessions and persists model and effort", () => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "vibe-claude-"));
   const projects = path.join(home, ".claude", "projects", "demo");
@@ -444,7 +449,7 @@ test("property inspector persists each task slot with its own inspector UUID", (
   const elements = {};
   for (const id of [
     "slotRow", "slot", "notifyDoneRow", "notifyDone", "notifyInputRow",
-    "notifyInput", "codexPath", "hint", "dot", "status", "refresh"
+    "notifyInput", "terminalRow", "terminal", "codexPath", "hint", "dot", "status", "refresh"
     , "codexPathRow", "enableClaudeUsage"
   ]) {
     elements[id] = {
