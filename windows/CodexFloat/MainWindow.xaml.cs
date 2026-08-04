@@ -454,12 +454,12 @@ public partial class MainWindow : Window
         {
             if (string.Equals(task.CodexSource, "cli", StringComparison.OrdinalIgnoreCase))
             {
-                var cwd = string.IsNullOrWhiteSpace(task.Cwd)
+                var cliCwd = string.IsNullOrWhiteSpace(task.Cwd)
                     ? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)
                     : task.Cwd;
                 var codex = CodexClient.FindCodex();
                 Process.Start(new ProcessStartInfo("cmd.exe",
-                    $"/d /s /c start \"Codex CLI\" cmd.exe /k \"cd /d \\\"{cwd}\\\" && \\\"{codex}\\\" resume \\\"{task.Id}\\\"\"")
+                    $"/d /s /c start \"Codex CLI\" cmd.exe /k \"cd /d \\\"{cliCwd}\\\" && \\\"{codex}\\\" resume \\\"{task.Id}\\\"\"")
                 {
                     UseShellExecute = false,
                     CreateNoWindow = true
