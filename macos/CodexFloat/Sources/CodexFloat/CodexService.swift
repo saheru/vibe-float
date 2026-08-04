@@ -112,7 +112,7 @@ final class CodexService: ObservableObject {
             "clientInfo": [
                 "name": "vibe_float",
                 "title": "Vibe Float",
-                "version": "0.5.7"
+                "version": "0.5.8"
             ],
             "capabilities": ["experimentalApi": true, "requestAttestation": false]
         ])
@@ -168,7 +168,7 @@ final class CodexService: ObservableObject {
                 "clientInfo": [
                     "name": "vibe_float",
                     "title": "Vibe Float",
-                    "version": "0.5.7"
+                    "version": "0.5.8"
                 ],
                 "capabilities": ["experimentalApi": true, "requestAttestation": false]
             ]) { [weak self] result in

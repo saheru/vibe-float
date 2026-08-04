@@ -57,6 +57,31 @@ test("manifest defines task, knobs, current-state buttons and usage actions", ()
   assert.deepEqual(manifest.Actions.find(action => action.UUID.endsWith(".currentmodel")).Controllers, ["Keypad"]);
   assert.deepEqual(manifest.Actions.find(action => action.UUID.endsWith(".currentpermission")).Controllers, ["Keypad"]);
   assert.deepEqual(manifest.Actions.find(action => action.UUID.endsWith(".soleffort")).Controllers, ["Knob", "Keypad"]);
+
+  const expectedIcons = {
+    task: "static/task.png",
+    model: "static/model.png",
+    permission: "static/permission.png",
+    soleffort: "static/sol-effort.png",
+    claudetask: "static/claude-task.png",
+    claudemodel: "static/claude-model.png",
+    claudeeffort: "static/claude-effort.png",
+    claudeusage5h: "static/claude-usage.png"
+  };
+  for (const [suffix, icon] of Object.entries(expectedIcons)) {
+    assert.equal(manifest.Actions.find(action => action.UUID.endsWith(`.${suffix}`)).Icon, icon);
+  }
+  for (const icon of new Set([
+    manifest.Icon,
+    manifest.CategoryIcon,
+    ...manifest.Actions.flatMap(action => [action.Icon, action.States[0].Image])
+  ])) {
+    const png = fs.readFileSync(path.join(__dirname, "../com.tlm.codex-control.sdPlugin", icon));
+    assert.equal(png.toString("ascii", 1, 4), "PNG");
+    assert.equal(png.readUInt32BE(16), 128);
+    assert.equal(png.readUInt32BE(20), 128);
+    assert.equal(png[25], 6, `${icon} must be RGBA`);
+  }
 });
 
 test("desktop apps expose shared CLI model and permission controls", () => {

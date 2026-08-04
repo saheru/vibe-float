@@ -4,6 +4,14 @@
 
 本文件记录 Vibe Float 桌面应用与 StreamDock Vibe Control 插件的重要更新。
 
+## [0.5.8] - 2026-08-04
+
+### 改进
+
+- 使用 ImageGen 重新设计 StreamDock Vibe Control 全套图标；Codex 采用冷蓝色，Claude 采用暖橙色，任务、模型、权限、Sol 强度与 Usage 均使用独立功能图形。
+- Spotify Control v0.3.2 同步采用新的绿色音乐控制图标，区分当前曲目、上一曲/下一曲和音量功能。
+- 所有图标均完成透明化、小尺寸居中与设备侧辨识度优化。
+
 ## [0.5.7] - 2026-08-04
 
 ### 修复

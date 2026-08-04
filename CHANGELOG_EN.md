@@ -4,6 +4,14 @@
 
 This file records notable changes to the Vibe Float desktop apps and the StreamDock Vibe Control plugin.
 
+## [0.5.8] - 2026-08-04
+
+### Improved
+
+- Redesigned the complete StreamDock Vibe Control icon set with ImageGen: cool blue for Codex, warm orange for Claude, and distinct glyphs for tasks, models, permissions, Sol effort, and Usage.
+- Spotify Control v0.3.2 now uses a matching green music-control family with separate current-track, previous/next, and volume icons.
+- Optimized every icon for transparency, centering, and small-device legibility.
+
 ## [0.5.7] - 2026-08-04
 
 ### Fixed
